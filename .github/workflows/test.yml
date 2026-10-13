@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  FOUNDRY_PROFILE: default
+
+jobs:
+  build-and-test:
+    name: Build + hermetic tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.5.1
+
+      - name: Show forge version
+        run: forge --version
+
+      - name: Build
+        run: forge build --sizes
+
+      - name: Hermetic tests (no RPC required)
+        # Unit tests only. Fork tests run in the fork-tests job below.
+        run: forge test --no-match-path "test/fork/*" -vvv
+
+  fork-tests:
+    name: Mainnet fork tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.5.1
+
+      - name: Fork tests
+        # Requires repo secret ETH_RPC_URL (archive node).
+        # If the secret is absent (e.g. on a fork PR), the suite
+        # self-skips via the `requireFork` modifier - it will not fail CI.
+        env:
+          ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
+          TEST_FORK_BLOCK: 25934149
+        run: |
+          if [ -z "$ETH_RPC_URL" ]; then
+            echo "::warning::ETH_RPC_URL is not set, so every fork test is skipped."
+          fi
+          forge test --match-path "test/fork/*" -vvv
+
+  slither:
+    name: Slither static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.5.1
+
+      - name: Slither
+        uses: crytic/slither-action@v0.4.0
+        with:
+          target: "."
+          # Slither runs for review visibility. Informational findings do not gate CI.
+          fail-on: none
+          slither-args: >-
+            --filter-paths "lib/|test/|script/"
+            --exclude naming-convention,solc-version,pragma
+
+  formatting:
+    name: forge fmt check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.5.1
+      - name: Check formatting
+        run: forge fmt --check

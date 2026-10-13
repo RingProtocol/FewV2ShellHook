@@ -1,0 +1,44 @@
+# ─── Foundry build artifacts ───
+cache/
+out/
+broadcast/
+
+# ─── Dependency directories ───
+node_modules/
+
+# ─── Environment secrets ───
+.env
+.env.*
+!.env.example
+
+# ─── Coverage reports ───
+lcov.info
+coverage/
+*.lcov
+
+# ─── Local development tool state ───
+# Error dumps, session metadata and command history are local-only.
+.omc/
+.claude/
+.cursor/
+.windsurf/
+.aider*
+
+# ─── IDE ───
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── OS ───
+.DS_Store
+Thumbs.db
+
+# ─── Logs ───
+*.log
+
+# ─── Local audit working files ───
+docs/*draft*.pdf
+docs/.gen_*
+docs/*.tsv
+docs/internal/
