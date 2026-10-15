@@ -1,0 +1,354 @@
+{
+  "date": "2026-10-16",
+  "chain_id": 1,
+  "status": "DEPLOYED_VERIFIED_MAINNET_ACCEPTANCE_PASSED",
+  "source_commit": "928580478ab4eed4f2d25ee0b2aff92ffbc5a97a",
+  "source_sha256": {
+    "src/FewV2ShellHook.sol": "0df21295afd11c2d82b9e49bcf59f56c03b70211dbbd31364564541c684f0337",
+    "src/FewV2ShellHookBase.sol": "7a1cf69c807571f917e0c7889701b438f5224d46114fdc9fee51c2c1d96396fb",
+    "src/lib/FewV2Price.sol": "1985283a1da68f1ab949bc9ee1b87f595b305a7afe09f931987b970ec11dfe16",
+    "src/lib/FewV2Math.sol": "6bfc8e5c4edfd258fe0a095f414a126883a778f49101ef41c3c5222e492c499d",
+    "src/interfaces/IAggregatorHook.sol": "7d2ad3bf0f2d91e16115fcdfd678508f52837b2f07067ff9070191c86078835b",
+    "src/interfaces/external/IFewV2.sol": "61e312623c79c1f1d689ae3f0b5c01109972f447c2385a51111a402eac03a18a",
+    "src/interfaces/external/IV4FeeRecipient.sol": "a8cbc22e3cc141293d9903d7523fcf621f4335ac135ec00f26987d2a76114d67",
+    "src/interfaces/external/IFewWrappedToken.sol": "41582e71092457b3e041458d869208b632d3350e62e5297a9dc4f06d5525aa05",
+    "src/interfaces/external/IFewFactory.sol": "2f365c647b69cf4a665827259b883ba31b9ba8eaaa75866f04a13f46120592a9"
+  },
+  "hook": "0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088",
+  "runtime_codehash": "0x5b46ba3a6e4c8fcd62d275ea7bb0fbfef08c6975c74df59596ff6350557b8d28",
+  "runtime_bytes": 24435,
+  "create2_salt": "0x0000000000000000000000000000000000000000000000000000000000000fce",
+  "verified_source": true,
+  "source_verification_method": "Etherscan API source readback plus matching runtime/source hashes",
+  "explorer": "https://etherscan.io/address/0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088#code",
+  "snapshot_block": 26199283,
+  "snapshot_utc": "2026-10-15T17:02:23+00:00",
+  "original_acceptance_block": 26199057,
+  "pool": {
+    "hook": "0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088",
+    "pool_id": "0x504a3b31c9cca7d5f66ae7ef3e94a845473b61b67b7061e1c48541f65280a08d",
+    "currency0": "0x0000000000000000000000000000000000000000",
+    "currency1": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+    "fee": 3000,
+    "tick_spacing": 1,
+    "registered_route": [
+      "0xa250cc729bb3323e7933022a67b52200fe354767",
+      "0x2078f336fdd260f708bec4a20c82b063274e1b23",
+      "0x00b06862de00a7e67a2d6d3fbeea592a32460de0"
+    ]
+  },
+  "roles": {
+    "owner": "0x61e75d5c5dee4205a5bbcd9fbc40498b693197ad",
+    "guardian": "0x61e75d5c5dee4205a5bbcd9fbc40498b693197ad",
+    "poolInitializer": "0x61e75d5c5dee4205a5bbcd9fbc40498b693197ad",
+    "residualRecipient": "0x61e75d5c5dee4205a5bbcd9fbc40498b693197ad"
+  },
+  "paused": false,
+  "add_timelock_seconds": 172800,
+  "protocol_fee": {
+    "controller": "0x89a5d5bf00a27d55c02951e49078a5c5771051db",
+    "token_jar": "0xf38521f130fccf29db1961597bc5d2b60f995f85",
+    "flags": 2048,
+    "multiplier": 25,
+    "packed_pool_fee": 163880,
+    "packed_policy_fee": 163880,
+    "effective_pips_0_to_1": 1000,
+    "effective_pips_1_to_0": 1000,
+    "rounding": "up to whole base units"
+  },
+  "retained_position": {
+    "token_id": 462837,
+    "owner": "0x61e75d5c5dee4205a5bbcd9fbc40498b693197ad",
+    "liquidity": 4301771009,
+    "capital": {
+      "eth_wei": "2499999999788130",
+      "wbtc_raw": 7403
+    },
+    "mainnet": true,
+    "retained_after_withdrawal_acceptance": true
+  },
+  "withdrawal_acceptance": {
+    "token_id": 462830,
+    "nft_burned": true,
+    "remaining_liquidity": 0,
+    "original_deposit": {
+      "eth_wei": "2499999999788130",
+      "wbtc_raw": 7403
+    },
+    "returned": {
+      "eth_wei": "2499999999788129",
+      "wbtc_raw": 7402
+    },
+    "rounding_loss": {
+      "eth_wei": 1,
+      "wbtc_raw": 1
+    },
+    "mainnet": true
+  },
+  "mainnet_quote_parity": [
+    {
+      "direction": "ETH->WBTC",
+      "quoted_output_raw": "294",
+      "actual_output_raw": "294",
+      "quote_equals_actual_this_execution": true,
+      "transaction_hash": "0x5ba91870aa57fd65bf54f677798e3e8e9c143833a59fe278a0d0b5ab45729830",
+      "mainnet_success": true
+    },
+    {
+      "direction": "WBTC->ETH",
+      "quoted_output_raw": "168196165941456",
+      "actual_output_raw": "168196165941456",
+      "quote_equals_actual_this_execution": true,
+      "transaction_hash": "0x743c2dfcb0acbb52f2fcfc9afe0732453d292c33a72852fb3c0f414f7cf08ce4",
+      "mainnet_success": true
+    }
+  ],
+  "mainnet_fee_receipts": [
+    {
+      "transaction_hash": "0x5ba91870aa57fd65bf54f677798e3e8e9c143833a59fe278a0d0b5ab45729830",
+      "block": 26199013,
+      "success": true,
+      "swap": {
+        "zero_for_one": true,
+        "amount_specified": "-100000000000000",
+        "amount_in_raw": "100000000000000",
+        "amount_out_raw": "294",
+        "gross_pair_output_raw": "295"
+      },
+      "official_protocol_fee": {
+        "recipient": "0xf38521f130fccf29db1961597bc5d2b60f995f85",
+        "currency": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+        "amount_raw": "1"
+      },
+      "wbtc_transfers": [
+        {
+          "from": "0x2078f336fdd260f708bec4a20c82b063274e1b23",
+          "to": "0x000000000004444c5dc75cb358380d2e3de08a90",
+          "amount_raw": "295"
+        },
+        {
+          "from": "0x000000000004444c5dc75cb358380d2e3de08a90",
+          "to": "0xf38521f130fccf29db1961597bc5d2b60f995f85",
+          "amount_raw": "1"
+        },
+        {
+          "from": "0x000000000004444c5dc75cb358380d2e3de08a90",
+          "to": "0x61e75d5c5dee4205a5bbcd9fbc40498b693197ad",
+          "amount_raw": "294"
+        }
+      ],
+      "call_trace": {
+        "available": true,
+        "native_transfers_to_user_or_jar": []
+      }
+    },
+    {
+      "transaction_hash": "0x743c2dfcb0acbb52f2fcfc9afe0732453d292c33a72852fb3c0f414f7cf08ce4",
+      "block": 26199019,
+      "success": true,
+      "swap": {
+        "zero_for_one": false,
+        "amount_specified": "-500",
+        "amount_in_raw": "500",
+        "amount_out_raw": "168196165941456",
+        "gross_pair_output_raw": "168364530471928"
+      },
+      "official_protocol_fee": {
+        "recipient": "0xf38521f130fccf29db1961597bc5d2b60f995f85",
+        "currency": "0x0000000000000000000000000000000000000000",
+        "amount_raw": "168364530472"
+      },
+      "wbtc_transfers": [
+        {
+          "from": "0x61e75d5c5dee4205a5bbcd9fbc40498b693197ad",
+          "to": "0x000000000004444c5dc75cb358380d2e3de08a90",
+          "amount_raw": "500"
+        },
+        {
+          "from": "0x000000000004444c5dc75cb358380d2e3de08a90",
+          "to": "0xbebc5239e446bc78b46654ad943b0fc19a31e088",
+          "amount_raw": "500"
+        },
+        {
+          "from": "0xbebc5239e446bc78b46654ad943b0fc19a31e088",
+          "to": "0x2078f336fdd260f708bec4a20c82b063274e1b23",
+          "amount_raw": "500"
+        }
+      ],
+      "call_trace": {
+        "available": true,
+        "native_transfers_to_user_or_jar": [
+          {
+            "from": "0x000000000004444c5dc75cb358380d2e3de08a90",
+            "to": "0xf38521f130fccf29db1961597bc5d2b60f995f85",
+            "value_wei": "168364530472"
+          },
+          {
+            "from": "0x000000000004444c5dc75cb358380d2e3de08a90",
+            "to": "0x61e75d5c5dee4205a5bbcd9fbc40498b693197ad",
+            "value_wei": "168196165941456"
+          }
+        ]
+      }
+    }
+  ],
+  "transactions": [
+    {
+      "stage": "deploy",
+      "hash": "0x9e77106cc26cf7e1d72b5d25e54fca7e0ebd6115675ba5cfd0f7c50ecb0a5be5",
+      "block": 26198967,
+      "status": 1,
+      "gas_used": 5646864,
+      "gas_cost_wei": "2697016892295216"
+    },
+    {
+      "stage": "initialize_eth_wbtc",
+      "hash": "0x7dca5c49bb61bc6bfe7f3a872e5c60c49b8833bfc570f766c25e24ecbd704014",
+      "block": 26198989,
+      "status": 1,
+      "gas_used": 250229,
+      "gas_cost_wei": "150412431698480"
+    },
+    {
+      "stage": "official_protocol_fee_update",
+      "hash": "0x3e0df04066b12c318aeece8c464546b2ca7a5652c80d9cde94455009cf9e063f",
+      "block": 26198992,
+      "status": 1,
+      "gas_used": 66659,
+      "gas_cost_wei": "36568362821270"
+    },
+    {
+      "stage": "shell_lp_mint_for_acceptance",
+      "hash": "0x4fd4bd00354c63433f924bdac704ec9386b020abebf19a621e7449785f764d50",
+      "block": 26199001,
+      "status": 1,
+      "gas_used": 48248,
+      "gas_cost_wei": "26676703833056"
+    },
+    {
+      "stage": "shell_lp_mint_for_acceptance",
+      "hash": "0xd5a35479f7b9347a50b19f18b0783d08f8cb328ebb5f2c391ebfad5e949fc77e",
+      "block": 26199002,
+      "status": 1,
+      "gas_used": 47578,
+      "gas_cost_wei": "26105462772086"
+    },
+    {
+      "stage": "shell_lp_mint_for_acceptance",
+      "hash": "0xb9d6dc1e8d86a20b6231d9a6e794646d97d5ad03317caa41ee5be56e283c9d20",
+      "block": 26199003,
+      "status": 1,
+      "gas_used": 370312,
+      "gas_cost_wei": "205027944724896"
+    },
+    {
+      "stage": "canary_eth_to_wbtc",
+      "hash": "0x5ba91870aa57fd65bf54f677798e3e8e9c143833a59fe278a0d0b5ab45729830",
+      "block": 26199013,
+      "status": 1,
+      "gas_used": 331754,
+      "gas_cost_wei": "162744118920956"
+    },
+    {
+      "stage": "canary_wbtc_to_eth",
+      "hash": "0x5a13f4fddb4671024aff37d52b3eb14b2b7e711ec6ecd291b32e38e21195e55c",
+      "block": 26199018,
+      "status": 1,
+      "gas_used": 47578,
+      "gas_cost_wei": "24886253827380"
+    },
+    {
+      "stage": "canary_wbtc_to_eth",
+      "hash": "0x743c2dfcb0acbb52f2fcfc9afe0732453d292c33a72852fb3c0f414f7cf08ce4",
+      "block": 26199019,
+      "status": 1,
+      "gas_used": 338064,
+      "gas_cost_wei": "178131912770208"
+    },
+    {
+      "stage": "shell_lp_full_withdrawal_acceptance",
+      "hash": "0x53d08ea80b3607a8f7c6ed4658ef4f4bf7b99bf5e33508095207074a356ae6e0",
+      "block": 26199031,
+      "status": 1,
+      "gas_used": 128632,
+      "gas_cost_wei": "73972296060488"
+    },
+    {
+      "stage": "shell_lp_final_position",
+      "hash": "0xf5b924edcd9c985d472eed2a4c64b94a5531c8bee2c789b13ce25fdf4f45a0d6",
+      "block": 26199035,
+      "status": 1,
+      "gas_used": 26324,
+      "gas_cost_wei": "15144068607260"
+    },
+    {
+      "stage": "shell_lp_final_position",
+      "hash": "0xd7185969e98d96b56174d0415f86cf2bd5d10502b9a94e044cd7061a7279702d",
+      "block": 26199036,
+      "status": 1,
+      "gas_used": 48248,
+      "gas_cost_wei": "27861983693248"
+    },
+    {
+      "stage": "shell_lp_final_position",
+      "hash": "0x2a0167d2f363c84d6dd08c2a8cc1e25ce584d4ba0d9706858b3545c2a59bd317",
+      "block": 26199037,
+      "status": 1,
+      "gas_used": 30478,
+      "gas_cost_wei": "17341772219926"
+    },
+    {
+      "stage": "shell_lp_final_position",
+      "hash": "0xf93d225d4624f054cf361cb80465d56cc357a7aae59be28af38150ed7cb15b20",
+      "block": 26199039,
+      "status": 1,
+      "gas_used": 325018,
+      "gas_cost_wei": "167740132533218"
+    },
+    {
+      "stage": "revoke_temporary_wbtc_spending_approvals",
+      "hash": "0xada33c5b970a587a4983c9c2e67bf987f11181a501c57197b9363355aca29e2f",
+      "block": 26199045,
+      "status": 1,
+      "gas_used": 26324,
+      "gas_cost_wei": "14988831951688"
+    },
+    {
+      "stage": "revoke_temporary_wbtc_spending_approvals",
+      "hash": "0x1efe0eaee9be505ebf9e8558623a4ce5ce9e932cb25f213296e845b3624719e3",
+      "block": 26199046,
+      "status": 1,
+      "gas_used": 30396,
+      "gas_cost_wei": "17043818620368"
+    }
+  ],
+  "total_gas_cost_wei": "3841662987349744",
+  "local_validation": {
+    "26197122": {
+      "passed": 191,
+      "failed": 0,
+      "skipped": 0,
+      "fee_math_fuzz_runs": 10000
+    },
+    "25934149": {
+      "passed": 191,
+      "failed": 0,
+      "skipped": 0,
+      "fee_math_fuzz_runs": 10000
+    }
+  },
+  "historical_deployment_fixture_block": 26197122,
+  "ci_on_tested_head": {
+    "head": "ac873d3849916706eaf0c7eb26472936ac7e5a21",
+    "all_check_statuses": "success",
+    "hermetic_passed": 20,
+    "fork_skipped": 171,
+    "fork_passed": 0,
+    "limits": "repository RPC unavailable; static analysis non-gating with known parsing gaps"
+  },
+  "independent_external_audit": false,
+  "new_allowlist_submission_sent": false,
+  "new_allowlist_approved": false,
+  "unforced_uniswap_api_routing": "not verified",
+  "refresh_scope": "Read-only checks of existing deployment and receipts; no new broadcast or test-suite rerun."
+}
