@@ -1,6 +1,6 @@
-# Mainnet Release
+# Historical Mainnet Release: October 12, 2026
 
-This records the **original pre-protocol-fee deployment**. Its source is pinned to public commit `730c6fdade1fb2bd0a1b9e0e38a1c353de3ad8a8`; current fee-aware `src/` is a new, undeployed candidate. Use the pinned revision to reproduce this historical release.
+This records the **original pre-protocol-fee deployment**, with its original snapshots and outstanding actions preserved below. Its source is pinned to public commit `730c6fdade1fb2bd0a1b9e0e38a1c353de3ad8a8`. Use the pinned revision to reproduce this historical release. The fee-aware ETH/WBTC replacement is now deployed at a different address; see the [current mainnet release](RELEASE_MAINNET.md).
 
 `FewV2ShellHook` is live on Ethereum mainnet at [`0x59255CbC688e402eF980B84668bA1d1c708b6088`](https://etherscan.io/address/0x59255cbc688e402ef980b84668ba1d1c708b6088#code), in native ETH mode, with verified source. It was deployed on October 12, 2026, together with one Shell Pool, ETH/USDC, which holds a small Shell position and passed a canary swap at the quoted amount.
 
