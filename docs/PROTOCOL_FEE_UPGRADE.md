@@ -77,7 +77,7 @@ The source base is public main commit `730c6fdade1fb2bd0a1b9e0e38a1c353de3ad8a8`
 6. Resubmit the **new deployed, verified address**, final source revision and fee proof under the existing reference. Ask Uniswap to confirm the Aggregator classification, multiplier and TokenJar settlement satisfy their current policy. Include the already approved FewV4ShellHook as context, not as proof of approval for FewV2.
 7. Approval, routing discovery, executable API quotes and a bounded live swap are separate acceptance checks. Stop activation if source verification, role readback, fee collection, quote parity, LP withdrawal or router amount limits fail.
 
-No push, deployment, funding transaction, LP movement, canary transaction or external submission has been performed for this candidate.
+No deployment, funding transaction, LP movement, canary transaction or external submission has been performed for this candidate. The local `fewv2-ops` keystore requires an interactive unlock or a local password-file configuration before signing. Do not send a password or private key through chat.
 
 ## Rehearsal snapshot
 
