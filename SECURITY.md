@@ -2,7 +2,7 @@
 
 ## Current status
 
-`FewV2ShellHook` is deployed on Ethereum mainnet at [`0x59255CbC688e402eF980B84668bA1d1c708b6088`](https://etherscan.io/address/0x59255cbc688e402ef980b84668ba1d1c708b6088#code); see [Mainnet Release](docs/RELEASE_MAINNET.md). The code has not received an independent external audit. Only the ETH/USDC Shell Pool is open, with a small Shell position.
+Current `src/` is an undeployed fee-aware candidate; see [Protocol Fee Upgrade](docs/PROTOCOL_FEE_UPGRADE.md). The earlier `FewV2ShellHook` is deployed on Ethereum mainnet at [`0x59255CbC688e402eF980B84668bA1d1c708b6088`](https://etherscan.io/address/0x59255cbc688e402ef980b84668ba1d1c708b6088#code); see [Mainnet Release](docs/RELEASE_MAINNET.md). The code has not received an independent external audit. Only the ETH/USDC Shell Pool is open, with a small Shell position.
 
 ## Reporting a vulnerability
 

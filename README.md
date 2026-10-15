@@ -21,9 +21,11 @@ The v4 pool is the route and settlement entry point. The FewV2 pair supplies the
 
 ## Status
 
+Current `src/` is an **undeployed protocol-fee candidate**. The existing mainnet address below runs the earlier implementation and does not gain this behavior. See [Protocol Fee Upgrade](docs/PROTOCOL_FEE_UPGRADE.md).
+
 - Deployed on Ethereum mainnet on October 12, 2026, in native ETH mode, at [`0x59255CbC688e402eF980B84668bA1d1c708b6088`](https://etherscan.io/address/0x59255cbc688e402ef980b84668ba1d1c708b6088#code). Only the ETH/USDC Shell Pool is open, with a small Shell position. See [Mainnet Release](docs/RELEASE_MAINNET.md).
 - Not audited. An earlier, materially different implementation was reviewed by ABDK; that review does not cover this code.
-- 153 tests pass, 133 of them against Ethereum mainnet forks. See [Validation](#validation).
+- The original release passed 153 tests. Candidate fee-accounting validation is recorded in [Protocol Fee Upgrade](docs/PROTOCOL_FEE_UPGRADE.md).
 
 ## How it works
 
@@ -31,7 +33,7 @@ The v4 pool is the route and settlement entry point. The FewV2 pair supplies the
 |---|---|
 | originToken Shell LP | Keeps origin-token inventory in Uniswap v4 `PoolManager` for swap-before-payment settlement and gives routing discovery a non-zero v4 position. |
 | Ring Swap v2 FewToken pair | Sets the executable price and depth. Its reserves move and its LPs collect the FewV2 fee. |
-| `FewV2ShellHook` | Wraps directly into the FewV2 pair, swaps, unwraps directly into PoolManager where possible and settles the v4 balance delta atomically. It adds no fee of its own. |
+| `FewV2ShellHook` | Wraps directly into the FewV2 pair, swaps, unwraps directly into PoolManager where possible and settles the v4 balance delta atomically. It adds no Ring fee; configured Uniswap protocol fees are paid in origin currency to the controller's TokenJar. |
 
 Hook swaps bypass the Shell Pool curve. Its `slot0`, active liquidity and fee growth do not move during those swaps. Shell LPs do not earn swap fees from this path, but the position remains owned and withdrawable through the standard v4 PositionManager, including while swaps are paused.
 
@@ -65,7 +67,7 @@ The Hook implements Uniswap's public Aggregator Hook ABI:
 
 - `quote()` simulates the complete swap through the official v4 Quoter;
 - `pseudoTotalValueLocked()` reports FewV2 reserves, capped by wrapper backing and current PoolManager origin-token cash, as a conservative routing-depth signal;
-- `AggregatorPoolRegistered` and `HookSwap` are available for indexers that choose to consume them. `HookSwap.swapFee` is `0` because the Hook adds no separate fee; the FewV2 pair's 30 bps fee is already reflected in its executed amounts.
+- `AggregatorPoolRegistered` and `HookSwap` are available for indexers that choose to consume them. `HookSwap.swapFee` reports the effective Uniswap protocol fee in pips. The FewV2 pair's 30 bps LP fee is already reflected in executed amounts; it is not added to that event field.
 
 Each Shell Pool maps to one canonical direct FewV2 pair. The Hook does not search connector tokens or accept a caller-supplied pair.
 
@@ -83,14 +85,15 @@ References:
 |---|---:|---|
 | Shell Pool fee field | `3000` | Mirrors the FewV2 pair's 30 bps fee for pool metadata. The v4 curve itself is bypassed and does not charge this fee. |
 | Tick spacing | `1` | Keeps the initialization marker close to the live FewV2 reserve price. The exact non-canonical fee/tick PoolKey must be indexed in production. |
-| Additional Hook fee | `0` | Users pay the FewV2 pair's 30 bps fee and no separate Ring output fee. |
+| Additional Ring fee | `0` | No Ring output fee is added. |
+| Uniswap protocol fee | Per-pool directional rate × `25` | Follows Uniswap's Aggregator family. Exact-input pays from output; exact-output pays from grossed-up input. The fee controller supplies the TokenJar recipient. |
 | Initialization tolerance | Tick-index difference at most `1` | Prevents a misleading Shell marker price. Initialization should use a private transaction because a normal FewV2 trade can make a public transaction revert. |
 | WETH representation | Native ETH or WETH, fixed at deployment | Prevents two Shell Pools on one Hook from reporting the same FewV2 reserves. Deploy only one mode. |
 | Underlying add delay | `172800` seconds, immutable | Gives the guardian and observers time to react before a new underlying becomes usable. |
 
 ## Validation
 
-All 153 tests pass at Ethereum mainnet block `25,934,149` (the CI pin) and at block `26,176,789`, against the real Uniswap v4 PoolManager, PositionManager, V4Quoter and Universal Router plus live Ring factories, wrappers and FewV2 pairs.
+The original pre-fee release passed all 153 tests at Ethereum mainnet block `25,934,149` (the CI pin) and at block `26,176,789`, against the real Uniswap v4 PoolManager, PositionManager, V4Quoter and Universal Router plus live Ring factories, wrappers and FewV2 pairs.
 
 | Suite | Passed |
 |---|---:|

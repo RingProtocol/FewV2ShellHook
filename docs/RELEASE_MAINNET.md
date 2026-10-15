@@ -1,5 +1,7 @@
 # Mainnet Release
 
+This records the **original pre-protocol-fee deployment**. Its source is pinned to public commit `730c6fdade1fb2bd0a1b9e0e38a1c353de3ad8a8`; current fee-aware `src/` is a new, undeployed candidate. Use the pinned revision to reproduce this historical release.
+
 `FewV2ShellHook` is live on Ethereum mainnet at [`0x59255CbC688e402eF980B84668bA1d1c708b6088`](https://etherscan.io/address/0x59255cbc688e402ef980b84668ba1d1c708b6088#code), in native ETH mode, with verified source. It was deployed on October 12, 2026, together with one Shell Pool, ETH/USDC, which holds a small Shell position and passed a canary swap at the quoted amount.
 
 Not done yet:
@@ -13,7 +15,7 @@ Configuration was read back from the contract at block 26,177,142.
 
 | Field | Value |
 |---|---|
-| Source | `src/` in this repository; see [Verify the deployment](#verify-the-deployment) |
+| Source | `src/` at public commit `730c6fdade1fb2bd0a1b9e0e38a1c353de3ad8a8`; see [Verify the deployment](#verify-the-deployment) |
 | Toolchain | forge 1.5.1-stable, solc 0.8.26, via-IR, 200 runs, cancun |
 | Tests | All passed at blocks 25,934,149 and 26,176,789 |
 | Mode | Native ETH (`useNativeCurrencyForWeth = true`) |
@@ -62,7 +64,7 @@ The canary sold 0.0001 ETH for 251,451 raw USDC (0.251451 USDC), the amount V4Qu
 
 ## Verify the deployment
 
-The source files verified on Etherscan are byte-identical to `src/` in this repository. `CheckDeployment` sends no transaction: it builds the init code from this repository, recomputes the CREATE2 address from the salt and the constructor values, and checks every immutable, role and allowlist entry against the live contract.
+The source files verified on Etherscan are byte-identical to `src/` at the pinned original-release revision above. Check out that revision before using the commands below; the fee-aware candidate produces different init code and a different address. `CheckDeployment` sends no transaction: it builds the init code from this repository, recomputes the CREATE2 address from the salt and the constructor values, and checks every immutable, role and allowlist entry against the live contract.
 
 ```sh
 git submodule update --init --recursive

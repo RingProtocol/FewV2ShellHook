@@ -157,6 +157,8 @@ abstract contract DeployMainnetBase is Script {
             "useNativeCurrencyForWeth mismatch in deployed hook"
         );
         require(deployed.CANONICAL_POOL_FEE() == 3000, "CANONICAL_POOL_FEE must be 3000");
+        require(deployed.protocolFeeFlags() == 1 << 11, "wrong Uniswap fee classification");
+        require(deployed.protocolFeeMultiplier() == 25, "wrong Aggregator fee multiplier");
 
         // Governance configuration must match what the address was mined against.
         require(deployed.owner() == c.owner, "owner mismatch in deployed hook");

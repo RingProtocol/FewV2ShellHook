@@ -4,6 +4,10 @@ This file separates known limits from claims that the code or tests have already
 
 ## Production admission gates
 
+### Protocol-fee candidate requires a new deployment and review
+
+Current `src/` adds Uniswap Aggregator-family fee accounting and is not deployed. The existing mainnet address still runs the original implementation. Fee classification (`1 << 11`), 25× scaling, exact-input/output settlement, current TokenJar discovery and failure behavior require review before release. A corrected fee path does not establish Labs' rejection reason or guarantee allowlisting. See [Protocol Fee Upgrade](docs/PROTOCOL_FEE_UPGRADE.md).
+
 ### Current code has no independent external audit
 
 No independent audit covers this code: not the contracts, constructors, governance layer, Shell LP accounting, quote path, price library or permission model. An earlier, materially different implementation was reviewed by ABDK; that review does not apply here. Fork tests are not proof of safety. Shell inventory should stay capped, with a rehearsed full withdrawal and explicit stop conditions.
@@ -22,7 +26,7 @@ The Hook maps one Shell Pool to one direct FewV2 pair. The reviewed public UniRo
 
 The Hook implements the public `IAggregatorHook` quote, depth and event surface, but the validated Ethereum Shell route is an ordinary `0x2088` v4 Hook. Deployment scripts therefore mine only the v4 permission bits. They do not require an Aggregator protocol/type first byte.
 
-If Uniswap later asks Ring to enter the separate direct Aggregator Hook path, that is a new integration: address ID, `aggregatorHookVersion`, fee-classification interfaces and native ETH direction handling must be reviewed and tested. The current public `BaseAggregatorHook` also rejects LP additions, while this Shell design intentionally allows originToken LP for PoolManager working inventory. Do not describe this candidate as equivalent to that base class.
+The candidate exposes Aggregator fee classification, which is separate from routing admission. If Uniswap later asks Ring to enter the direct Aggregator routing path, that is a new integration: address ID, `aggregatorHookVersion` and native ETH direction handling must be reviewed and tested. The public `BaseAggregatorHook` also rejects LP additions, while this Shell design intentionally allows originToken LP for PoolManager working inventory. Do not describe this candidate as equivalent to that base class.
 
 ## Accounting and liquidity constraints
 
@@ -60,11 +64,11 @@ If the initializer key is lost or compromised, the owner replaces it with `setPo
 
 ## Fee reporting and dependency constraints
 
-### The Hook adds no separate fee
+### LP fees, Ring fees and Uniswap protocol fees are separate
 
-The executable venue remains the FewV2 pair, which charges 30 bps before price impact. The Hook does not take an additional output fee.
+FewV2 charges its 30 bps LP fee. The Hook adds no Ring fee. The candidate pays configured Uniswap protocol fees directly to the current controller's TokenJar: from output for exact-input, and from grossed-up input for exact-output. Nonzero fees with no usable recipient revert atomically. Fee rates and recipients are not controlled by the Hook owner.
 
-`HookSwap.swapFee` reports `0` because the Hook itself charges no fee. It does not mean the underlying FewV2 trade is free; the FewV2 fee is already reflected in the executed amounts and reserve movement.
+`HookSwap.swapFee` reports the effective Uniswap protocol-fee rate in pips, or zero when no fee is configured. It does not include FewV2's LP fee, which is already reflected in the Pair execution.
 
 The current public v4 subgraph [`HookSwap` handler](https://github.com/Uniswap/v4-subgraph/blob/main/src/mappings/swap.ts) uses `swapFee` as the pool fee tier when calculating fee statistics, and only handles addresses included in its configured Hook set. If that handler is used for this deployment, volume can be recorded from the real `HookSwap` amounts but fee statistics would omit the FewV2 30 bps. It is not yet confirmed how Uniswap's production indexer represents the underlying venue fee, or whether it handles the deployed address. This is a reporting issue, not a settlement or custody issue.
 

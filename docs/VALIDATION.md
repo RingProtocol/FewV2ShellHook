@@ -1,5 +1,7 @@
 # Validation
 
+The sections below document the original release. Current fee-candidate results and additional tests are in [Protocol Fee Upgrade](PROTOCOL_FEE_UPGRADE.md). Historical release counts do not include the new fee suite.
+
 Snapshot date: October 12, 2026.
 
 ## Result
