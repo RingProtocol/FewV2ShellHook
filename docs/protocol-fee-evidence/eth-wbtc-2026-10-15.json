@@ -1,0 +1,76 @@
+{
+  "block": 26197122,
+  "few_factory": "0x7D86394139bf1122E82FDF45Bb4e3b038A4464DD",
+  "fewv2_factory": "0xeb2A625B704d73e82946D8d026E1F588Eed06416",
+  "weth": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+  "wbtc": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+  "fweth": "0xa250CC729Bb3323e7933022a67B52200fE354767",
+  "fwwbtc": "0x2078f336Fdd260f708BEc4a20c82b063274E1b23",
+  "pair": "0x00B06862dE00a7e67a2d6d3FbEEa592A32460de0",
+  "pair_token0": "0x2078f336Fdd260f708BEc4a20c82b063274E1b23",
+  "pair_token1": "0xa250CC729Bb3323e7933022a67B52200fE354767",
+  "reserve_eth_raw": 34136003906264733215024,
+  "reserve_wbtc_raw": 99662932171,
+  "reserve_update_timestamp": 1792032335,
+  "fweth_backing_raw": 4800820429413599223462,
+  "fwbtc_backing_raw": 16154218034,
+  "pm_wbtc_raw": 55387320042,
+  "pm_eth_raw": 59181729478463742571973,
+  "canonical_pair_confirmed": true,
+  "nonzero_reserves": true,
+  "broadcast": false,
+  "pool_key": {
+    "currency0": "0x0000000000000000000000000000000000000000",
+    "currency1": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+    "fee": 3000,
+    "tickSpacing": 1,
+    "hook": "0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088",
+    "pool_id": "0x504a3b31c9cca7d5f66ae7ef3e94a845473b61b67b7061e1c48541f65280a08d"
+  },
+  "validation": {
+    "26197122": {
+      "summary": "Ran 11 test suites in 16.43s (104.87s CPU time): 182 tests passed, 0 failed, 0 skipped (182 total tests)",
+      "eth_wbtc_nonzero_fee_universal_router_and_lp_exit": "PASS",
+      "fuzz_runs": 10000
+    },
+    "25934149": {
+      "summary": "Ran 11 test suites in 2.41s (16.45s CPU time): 182 tests passed, 0 failed, 0 skipped (182 total tests)",
+      "eth_wbtc_nonzero_fee_universal_router_and_lp_exit": "PASS",
+      "fuzz_runs": 10000
+    }
+  },
+  "rehearsal": {
+    "scope": "deployment, native ETH/WBTC initialization, ETH-to-WBTC official Universal Router canary; no LP mint in this script",
+    "simulation_only": true,
+    "wallet_used": false,
+    "block": 26197122,
+    "steps": [
+      {
+        "target": "0x4e59b44847b379578588920ca78fbf26c0b4956c",
+        "value": "0x0",
+        "function": null,
+        "type": "CREATE2"
+      },
+      {
+        "target": "0x000000000004444c5dc75cb358380d2e3de08a90",
+        "value": "0x0",
+        "function": "initialize((address,address,uint24,int24,address),uint160)",
+        "type": "CALL"
+      },
+      {
+        "target": "0x66a9893cc07d91d95644aedd05d03f95e1dba8af",
+        "value": "0x5af3107a4000",
+        "function": "execute(bytes,bytes[],uint256)",
+        "type": "CALL"
+      }
+    ],
+    "eth_input_raw": 100000000000000,
+    "wbtc_quoted_output_raw": 291,
+    "wbtc_minimum_output_raw": 289,
+    "estimated_total_gas_including_forge_margin": 8576458,
+    "estimated_total_eth": "0.001251481777164388",
+    "initialization": "PASS",
+    "canary": "PASS",
+    "production_source_unchanged": true
+  }
+}

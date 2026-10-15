@@ -27,6 +27,7 @@ import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol"
 import {FewV2ShellHookBase} from "../../src/FewV2ShellHookBase.sol";
 import {IFewFactory} from "../../src/interfaces/external/IFewFactory.sol";
 import {ISwapV2Pair, ISwapV2Factory} from "../../src/interfaces/external/IFewV2.sol";
+import {IV4FeeRecipient} from "../../src/interfaces/external/IV4FeeRecipient.sol";
 
 interface IEthWbtcUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -149,6 +150,29 @@ contract EthWbtcShellParityForkTest is Test {
         _runExactInput(false, 500);
         _runExactOutput(false, 0.00002 ether);
 
+        _assertExecutionState(beforeState, FEWV2_PAIR);
+        _burnAndCheck();
+    }
+
+    function test_ethWbtc_protocolFees_fourUniversalRouterModes_payMainnetJarAndRecoverCapital() public onFork {
+        _assertRegisteredRoute();
+        address controller = PM.protocolFeeController();
+        address jar = IV4FeeRecipient(controller).TOKEN_JAR();
+        assertGt(jar.code.length, 0, "real mainnet TokenJar");
+        vm.prank(controller);
+        PM.setProtocolFee(key, uint24(40) | (uint24(12) << 12));
+        _mint();
+        ShellSnapshot memory beforeState = _snapshot(FEWV2_PAIR);
+        uint256 jarEth = jar.balance;
+        uint256 jarWbtc = IERC20(WBTC).balanceOf(jar);
+
+        _runExactInput(true, 0.0001 ether);
+        _runExactOutput(true, 100);
+        _runExactInput(false, 500);
+        _runExactOutput(false, 0.00002 ether);
+
+        assertGt(jar.balance, jarEth, "TokenJar receives native ETH protocol fees");
+        assertGt(IERC20(WBTC).balanceOf(jar), jarWbtc, "TokenJar receives WBTC protocol fees");
         _assertExecutionState(beforeState, FEWV2_PAIR);
         _burnAndCheck();
     }

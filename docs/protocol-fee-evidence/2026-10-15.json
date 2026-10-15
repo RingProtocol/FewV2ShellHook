@@ -28,15 +28,15 @@
     "wallet_used": false
   },
   "validation": {
-    "26196892": {
-      "summary": "Ran 11 test suites in 2.74s (16.62s CPU time): 181 tests passed, 0 failed, 0 skipped (181 total tests)",
-      "fuzz_runs": 10000,
-      "real_mainnet_controller_and_token_jar_test": "PASS"
+    "26197122": {
+      "summary": "Ran 11 test suites in 16.43s (104.87s CPU time): 182 tests passed, 0 failed, 0 skipped (182 total tests)",
+      "eth_wbtc_nonzero_fee_universal_router_and_lp_exit": "PASS",
+      "fuzz_runs": 10000
     },
     "25934149": {
-      "summary": "Ran 11 test suites in 2.43s (15.66s CPU time): 181 tests passed, 0 failed, 0 skipped (181 total tests)",
-      "fuzz_runs": 10000,
-      "real_mainnet_controller_and_token_jar_test": "PASS"
+      "summary": "Ran 11 test suites in 2.41s (16.45s CPU time): 182 tests passed, 0 failed, 0 skipped (182 total tests)",
+      "eth_wbtc_nonzero_fee_universal_router_and_lp_exit": "PASS",
+      "fuzz_runs": 10000
     }
   },
   "toolchain": {
@@ -57,5 +57,23 @@
     "src/interfaces/external/IV4FeeRecipient.sol": "a8cbc22e3cc141293d9903d7523fcf621f4335ac135ec00f26987d2a76114d67",
     "src/lib/FewV2Math.sol": "6bfc8e5c4edfd258fe0a095f414a126883a778f49101ef41c3c5222e492c499d",
     "src/lib/FewV2Price.sol": "1985283a1da68f1ab949bc9ee1b87f595b305a7afe09f931987b970ec11dfe16"
+  },
+  "previous_validation": {
+    "26196892": {
+      "summary": "Ran 11 test suites in 2.74s (16.62s CPU time): 181 tests passed, 0 failed, 0 skipped (181 total tests)",
+      "fuzz_runs": 10000,
+      "real_mainnet_controller_and_token_jar_test": "PASS"
+    },
+    "25934149": {
+      "summary": "Ran 11 test suites in 2.43s (15.66s CPU time): 181 tests passed, 0 failed, 0 skipped (181 total tests)",
+      "fuzz_runs": 10000,
+      "real_mainnet_controller_and_token_jar_test": "PASS"
+    }
+  },
+  "initial_pool": {
+    "currencies": "native ETH/WBTC",
+    "pair": "0x00B06862dE00a7e67a2d6d3FbEEa592A32460de0",
+    "block": 26197122,
+    "evidence": "eth-wbtc-2026-10-15.json"
   }
 }
