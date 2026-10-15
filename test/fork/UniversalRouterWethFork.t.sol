@@ -26,6 +26,14 @@ interface IUniversalRouterWethTest {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
 }
 
+interface IRouterFeeManagerOwner {
+    function owner() external view returns (address);
+}
+
+contract RouterFeeAdapterMock {
+    address public constant TOKEN_JAR = address(0xCAFE);
+}
+
 /// @notice WETH-mode coverage through the official Universal Router V4_SWAP command.
 /// @dev Uses the action order in the reviewed public UniRoute source: settle-first exact-input,
 ///      and swap-first plus open-delta settlement for exact-output.
@@ -93,6 +101,65 @@ contract UniversalRouterWethForkTest is Test {
 
     function test_universalRouter_USDC_to_WETH_exactOutput() public onFork {
         _runExactOutput(true, 0.0001 ether);
+    }
+
+    function _enableProtocolFee() internal {
+        RouterFeeAdapterMock adapter = new RouterFeeAdapterMock();
+        vm.prank(IRouterFeeManagerOwner(address(PM)).owner());
+        PM.setProtocolFeeController(address(adapter));
+        vm.prank(address(adapter));
+        PM.setProtocolFee(key, uint24(40) | (uint24(40) << 12));
+    }
+
+    function test_universalRouter_protocolFee_WETH_to_USDC_exactInput() public onFork {
+        _enableProtocolFee();
+        uint256 before = IERC20(USDC).balanceOf(address(0xCAFE));
+        _runExactInput(false, 0.001 ether);
+        assertGt(IERC20(USDC).balanceOf(address(0xCAFE)), before);
+    }
+
+    function test_universalRouter_protocolFee_WETH_to_USDC_exactOutput() public onFork {
+        _enableProtocolFee();
+        uint256 before = IERC20(WETH).balanceOf(address(0xCAFE));
+        _runExactOutput(false, 1e6);
+        assertGt(IERC20(WETH).balanceOf(address(0xCAFE)), before);
+    }
+
+    function test_universalRouter_protocolFee_USDC_to_WETH_exactInput() public onFork {
+        _enableProtocolFee();
+        uint256 before = IERC20(WETH).balanceOf(address(0xCAFE));
+        _runExactInput(true, 1e6);
+        assertGt(IERC20(WETH).balanceOf(address(0xCAFE)), before);
+    }
+
+    function test_universalRouter_protocolFee_USDC_to_WETH_exactOutput() public onFork {
+        _enableProtocolFee();
+        uint256 before = IERC20(USDC).balanceOf(address(0xCAFE));
+        _runExactOutput(true, 0.0001 ether);
+        assertGt(IERC20(USDC).balanceOf(address(0xCAFE)), before);
+    }
+
+    function test_universalRouter_protocolFee_inputCapRevertsPayment() public onFork {
+        _enableProtocolFee();
+        uint128 amountIn = uint128(hook.quote(false, int256(1e6), key.toId()));
+        uint256 jarBefore = IERC20(WETH).balanceOf(address(0xCAFE));
+        uint256 userInput = IERC20(WETH).balanceOf(USER);
+        uint256 userOutput = IERC20(USDC).balanceOf(USER);
+        bytes[] memory params = new bytes[](3);
+        params[0] = abi.encode(IV4Router.ExactOutputSingleParams(key, false, 1e6, amountIn - 1, ""));
+        params[1] = abi.encode(key.currency1, ActionConstants.OPEN_DELTA, true);
+        params[2] = abi.encode(key.currency0, uint256(1e6));
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            abi.encodePacked(uint8(Actions.SWAP_EXACT_OUT_SINGLE), uint8(Actions.SETTLE), uint8(Actions.TAKE_ALL)),
+            params
+        );
+        vm.prank(USER);
+        vm.expectRevert();
+        IUniversalRouterWethTest(ROUTER).execute(hex"10", inputs, block.timestamp + 60);
+        assertEq(IERC20(WETH).balanceOf(address(0xCAFE)), jarBefore);
+        assertEq(IERC20(WETH).balanceOf(USER), userInput);
+        assertEq(IERC20(USDC).balanceOf(USER), userOutput);
     }
 
     function _runExactInput(bool zeroForOne, uint128 amountIn) internal {

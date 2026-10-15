@@ -1,5 +1,9 @@
 # Validation
 
+The final fee-aware release candidate runs 191 tests with zero failures or skips locally; see [Release Readiness](RELEASE_READINESS.md) for fixed blocks, historical fixtures, regression evidence and the limits of CI/Slither.
+
+The sections below document the original release. Current fee-candidate results and additional tests are in [Protocol Fee Upgrade](PROTOCOL_FEE_UPGRADE.md). Historical release counts do not include the new fee suite.
+
 Snapshot date: October 12, 2026.
 
 ## Result

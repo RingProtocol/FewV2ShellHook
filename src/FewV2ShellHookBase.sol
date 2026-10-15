@@ -16,6 +16,8 @@ import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {BeforeSwapDelta, toBeforeSwapDelta} from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
 import {SafeCast} from "@uniswap/v4-core/src/libraries/SafeCast.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
+import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
+import {ProtocolFeeLibrary} from "@uniswap/v4-core/src/libraries/ProtocolFeeLibrary.sol";
 
 import {BaseHook} from "v4-periphery/src/utils/BaseHook.sol";
 import {DeltaResolver} from "v4-periphery/src/base/DeltaResolver.sol";
@@ -24,6 +26,7 @@ import {IV4Quoter} from "v4-periphery/src/interfaces/IV4Quoter.sol";
 import {IFewWrappedToken} from "./interfaces/external/IFewWrappedToken.sol";
 import {IFewFactory} from "./interfaces/external/IFewFactory.sol";
 import {ISwapV2Pair, ISwapV2Factory} from "./interfaces/external/IFewV2.sol";
+import {IV4FeeRecipient} from "./interfaces/external/IV4FeeRecipient.sol";
 import {IAggregatorHook} from "./interfaces/IAggregatorHook.sol";
 import {FewV2Math} from "./lib/FewV2Math.sol";
 import {FewV2Price} from "./lib/FewV2Price.sol";
@@ -49,6 +52,7 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
     using SafeCast for int256;
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
+    using StateLibrary for IPoolManager;
 
     // ============ Errors ============
     error InvalidPoolKey();
@@ -81,6 +85,7 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
     error PairAlreadyRegistered(PoolId existingPoolId);
     error InsufficientPoolManagerInventory(address token, uint256 available, uint256 required);
     error InsufficientWrapperBacking(address fewToken, address underlying, uint256 available, uint256 required);
+    error InvalidProtocolFeeRecipient();
 
     // ============ Constants ============
     /// @notice FewV2 uses the Uniswap V2 0.30% fee. The Shell Pool key mirrors that external fee.
@@ -93,6 +98,8 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
     ///      The Shell price is not used for execution, but keeping the marker close to the live
     ///      FewV2 price avoids publishing a misleading immutable slot0 value.
     int24 public constant MAX_INIT_TICK_DEVIATION = 1;
+    /// @notice Matches Uniswap's Aggregator family fee scaling; the pool controller sets the rate.
+    uint24 public constant protocolFeeMultiplier = 25;
 
     // ============ Immutable ============
     /// @notice Ring wrapper factory and FewV2 AMM factory used to derive canonical direct routes.
@@ -147,6 +154,12 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
         uint256 fwOutAmount
     );
     event Sweep(address indexed token, address indexed to, uint256 amount, address indexed triggeredBy);
+    event ProtocolFeesCollected(address indexed recipient, Currency indexed currency, uint256 amount);
+
+    /// @notice Self-classifies as the same fee family as Uniswap's public Aggregator Hooks.
+    function protocolFeeFlags() external pure returns (uint256) {
+        return 1 << 11;
+    }
 
     // ============ Constructor ============
     constructor(
@@ -386,8 +399,12 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
         _wrapExactTo(inCurr, route.fewIn, route.pair, amountIn);
         uint256 fwOutAmount = _executeFewV2ExactInput(route.pair, route.fewIn, route.fewOut, amountIn);
 
-        uint256 amountOut = fwOutAmount;
-        _unwrapAndSettleExact(route.fewOut, outCurr, amountOut);
+        (uint256 protocolFeeAmount, uint24 protocolFee) =
+            _protocolFeeAmount(poolId, params.zeroForOne, fwOutAmount, true);
+        uint256 amountOut = fwOutAmount - protocolFeeAmount;
+        if (amountOut == 0) revert InvalidSwapAmount();
+        _unwrapAndSettleExact(route.fewOut, outCurr, fwOutAmount);
+        _payProtocolFee(outCurr, protocolFeeAmount);
 
         _requireBalance(inCurr, inputBaseline);
         _requireBalance(outCurr, outputBaseline);
@@ -395,7 +412,7 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
         _requireTokenBalance(route.fewOut, fewOutBaseline);
 
         emit SwapAggregated(poolId, sender, params.zeroForOne, params.amountSpecified, amountIn, amountOut, fwOutAmount);
-        _emitHookSwap(poolId, sender, params.zeroForOne, amountIn, amountOut);
+        _emitHookSwap(poolId, sender, params.zeroForOne, amountIn, amountOut, protocolFee);
 
         BeforeSwapDelta swapDelta = toBeforeSwapDelta(amountInDelta, -amountOut.toInt256().toInt128());
         return (IHooks.beforeSwap.selector, swapDelta, 0);
@@ -414,7 +431,9 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
         uint256 amountOut = OZSafeCast.toUint256(int256(amountOutDelta));
 
         uint256 fwInRequired = _quoteAmountInForHop(route.pair, route.fewIn, route.fewOut, amountOut);
-        uint256 amountIn = fwInRequired; // 1:1 wrap
+        (uint256 protocolFeeAmount, uint24 protocolFee) =
+            _protocolFeeAmount(poolId, params.zeroForOne, fwInRequired, false);
+        uint256 amountIn = fwInRequired + protocolFeeAmount;
 
         _requireSettlementInventory(route.originIn, amountIn);
         _requireWrapperBacking(route.fewOut, amountOut);
@@ -423,11 +442,12 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
         uint256 outputBaseline = outCurr.balanceOfSelf();
         uint256 fewInBaseline = IERC20(route.fewIn).balanceOf(address(this));
         uint256 fewOutBaseline = IERC20(route.fewOut).balanceOf(address(this));
-        _take(inCurr, address(this), amountIn);
-        _wrapExactTo(inCurr, route.fewIn, route.pair, amountIn);
-        _executeFewV2ExactOutput(route.pair, route.fewIn, route.fewOut, amountIn, amountOut);
+        _take(inCurr, address(this), fwInRequired);
+        _wrapExactTo(inCurr, route.fewIn, route.pair, fwInRequired);
+        _executeFewV2ExactOutput(route.pair, route.fewIn, route.fewOut, fwInRequired, amountOut);
 
         _unwrapAndSettleExact(route.fewOut, outCurr, amountOut);
+        _payProtocolFee(inCurr, protocolFeeAmount);
 
         _requireBalance(inCurr, inputBaseline);
         _requireBalance(outCurr, outputBaseline);
@@ -435,7 +455,7 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
         _requireTokenBalance(route.fewOut, fewOutBaseline);
 
         emit SwapAggregated(poolId, sender, params.zeroForOne, params.amountSpecified, amountIn, amountOut, amountOut);
-        _emitHookSwap(poolId, sender, params.zeroForOne, amountIn, amountOut);
+        _emitHookSwap(poolId, sender, params.zeroForOne, amountIn, amountOut, protocolFee);
 
         BeforeSwapDelta swapDelta = toBeforeSwapDelta(-amountOutDelta, amountIn.toInt256().toInt128());
         return (IHooks.beforeSwap.selector, swapDelta, 0);
@@ -447,15 +467,52 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
         amountInDelta = amountIn.toInt128();
     }
 
-    function _emitHookSwap(PoolId poolId, address sender, bool zeroForOne, uint256 amountIn, uint256 amountOut)
-        internal
-    {
+    function _emitHookSwap(
+        PoolId poolId,
+        address sender,
+        bool zeroForOne,
+        uint256 amountIn,
+        uint256 amountOut,
+        uint24 protocolFee
+    ) internal {
         int256 signedIn = amountIn.toInt256();
         int256 signedOut = amountOut.toInt256();
         (int256 amount0, int256 amount1) = zeroForOne ? (signedIn, -signedOut) : (-signedOut, signedIn);
         // FewV2's 30 bps venue fee is already reflected in amountIn/amountOut. This field
-        // reports only an additional Hook or Uniswap protocol fee, which this Hook does not add.
-        emit HookSwap(poolId, sender, amount0, amount1, 0);
+        // reports the effective Uniswap protocol fee, not the external Pair's LP fee.
+        emit HookSwap(poolId, sender, amount0, amount1, protocolFee);
+    }
+
+    /// @dev Fee math matches Uniswap/v4-hooks-public ProtocolFees: exact input pays from output;
+    ///      exact output pays from grossed-up input. quote() simulates this same path, once.
+    function _protocolFeeAmount(PoolId poolId, bool zeroForOne, uint256 amount, bool exactInput)
+        internal
+        view
+        returns (uint256 feeAmount, uint24 rate)
+    {
+        (,, uint24 packed,) = poolManager.getSlot0(poolId);
+        rate = (zeroForOne ? ProtocolFeeLibrary.getZeroForOneFee(packed) : ProtocolFeeLibrary.getOneForZeroFee(packed))
+            * protocolFeeMultiplier;
+        if (rate != 0) {
+            uint256 denominator = exactInput ? 1_000_000 : 1_000_000 - rate;
+            // Every executable v4 delta must fit positive int128. Check that bound before the
+            // product: int128.max * uint24.max + 1e6 is below 2^152, so this cannot overflow.
+            uint256 boundedAmount = uint128(amount.toInt128());
+            unchecked {
+                feeAmount = (boundedAmount * rate + denominator - 1) / denominator;
+            }
+        }
+    }
+
+    /// @dev The recipient comes only from Uniswap's current fee controller, never Hook governance.
+    ///      Resolve every payment so controller/TokenJar rotations cannot leave a stale recipient.
+    ///      A configured fee with no usable recipient fails closed instead of silently skipping it.
+    function _payProtocolFee(Currency currency, uint256 amount) internal {
+        if (amount == 0) return;
+        address recipient = IV4FeeRecipient(poolManager.protocolFeeController()).TOKEN_JAR();
+        if (recipient == address(0)) revert InvalidProtocolFeeRecipient();
+        poolManager.take(currency, recipient, amount);
+        emit ProtocolFeesCollected(recipient, currency, amount);
     }
 
     // ============ Wrap / unwrap ============

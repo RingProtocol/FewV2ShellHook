@@ -1,0 +1,79 @@
+{
+  "status": "UNDEPLOYED_REHEARSAL_ONLY",
+  "block": 26197052,
+  "source_base": "730c6fdade1fb2bd0a1b9e0e38a1c353de3ad8a8",
+  "prior_hook": "0x59255CbC688e402eF980B84668bA1d1c708b6088",
+  "roles": {
+    "HOOK_OWNER_ADDRESS": "0x61E75d5c5deE4205a5bBCD9fBc40498b693197ad",
+    "GUARDIAN_ADDRESS": "0x61E75d5c5deE4205a5bBCD9fBc40498b693197ad",
+    "POOL_INITIALIZER_ADDRESS": "0x61E75d5c5deE4205a5bBCD9fBc40498b693197ad",
+    "RESIDUAL_RECIPIENT_ADDRESS": "0x61E75d5c5deE4205a5bBCD9fBc40498b693197ad"
+  },
+  "fee_controller": "0x89A5D5bF00a27D55c02951E49078a5C5771051dB",
+  "token_jar": "0xf38521f130fcCF29dB1961597bc5d2B60F995f85",
+  "candidate_address": "0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088",
+  "salt": "0x0000000000000000000000000000000000000000000000000000000000000fce",
+  "native_eth": true,
+  "empty_at_snapshot": true,
+  "rehearsal": {
+    "result": "PASS",
+    "broadcast": false,
+    "block": 26197052,
+    "runtime_bytes": 24435,
+    "runtime_codehash": "0x5b46ba3a6e4c8fcd62d275ea7bb0fbfef08c6975c74df59596ff6350557b8d28",
+    "estimated_script_gas": 7799730,
+    "estimated_gas_price_gwei": "0.149765108",
+    "estimated_deployment_eth": "0.00116812740582084",
+    "estimate_scope": "deployment only; not initialization, LP funding or live canary",
+    "wallet_used": false
+  },
+  "validation": {
+    "26197122": {
+      "summary": "Ran 11 test suites in 16.43s (104.87s CPU time): 182 tests passed, 0 failed, 0 skipped (182 total tests)",
+      "eth_wbtc_nonzero_fee_universal_router_and_lp_exit": "PASS",
+      "fuzz_runs": 10000
+    },
+    "25934149": {
+      "summary": "Ran 11 test suites in 2.41s (16.45s CPU time): 182 tests passed, 0 failed, 0 skipped (182 total tests)",
+      "eth_wbtc_nonzero_fee_universal_router_and_lp_exit": "PASS",
+      "fuzz_runs": 10000
+    }
+  },
+  "toolchain": {
+    "solc": "0.8.26",
+    "optimizer_runs": 200,
+    "via_ir": true,
+    "evm_version": "cancun",
+    "forge": "forge Version: 1.5.1-stable"
+  },
+  "upstream_fee_reference": "5b73674d8db8ff9ef4f4a09cfee5f12302d68248",
+  "production_source_sha256": {
+    "src/FewV2ShellHook.sol": "0df21295afd11c2d82b9e49bcf59f56c03b70211dbbd31364564541c684f0337",
+    "src/FewV2ShellHookBase.sol": "7a1cf69c807571f917e0c7889701b438f5224d46114fdc9fee51c2c1d96396fb",
+    "src/interfaces/IAggregatorHook.sol": "7d2ad3bf0f2d91e16115fcdfd678508f52837b2f07067ff9070191c86078835b",
+    "src/interfaces/external/IFewFactory.sol": "2f365c647b69cf4a665827259b883ba31b9ba8eaaa75866f04a13f46120592a9",
+    "src/interfaces/external/IFewV2.sol": "61e312623c79c1f1d689ae3f0b5c01109972f447c2385a51111a402eac03a18a",
+    "src/interfaces/external/IFewWrappedToken.sol": "41582e71092457b3e041458d869208b632d3350e62e5297a9dc4f06d5525aa05",
+    "src/interfaces/external/IV4FeeRecipient.sol": "a8cbc22e3cc141293d9903d7523fcf621f4335ac135ec00f26987d2a76114d67",
+    "src/lib/FewV2Math.sol": "6bfc8e5c4edfd258fe0a095f414a126883a778f49101ef41c3c5222e492c499d",
+    "src/lib/FewV2Price.sol": "1985283a1da68f1ab949bc9ee1b87f595b305a7afe09f931987b970ec11dfe16"
+  },
+  "previous_validation": {
+    "26196892": {
+      "summary": "Ran 11 test suites in 2.74s (16.62s CPU time): 181 tests passed, 0 failed, 0 skipped (181 total tests)",
+      "fuzz_runs": 10000,
+      "real_mainnet_controller_and_token_jar_test": "PASS"
+    },
+    "25934149": {
+      "summary": "Ran 11 test suites in 2.43s (15.66s CPU time): 181 tests passed, 0 failed, 0 skipped (181 total tests)",
+      "fuzz_runs": 10000,
+      "real_mainnet_controller_and_token_jar_test": "PASS"
+    }
+  },
+  "initial_pool": {
+    "currencies": "native ETH/WBTC",
+    "pair": "0x00B06862dE00a7e67a2d6d3FbEEa592A32460de0",
+    "block": 26197122,
+    "evidence": "eth-wbtc-2026-10-15.json"
+  }
+}

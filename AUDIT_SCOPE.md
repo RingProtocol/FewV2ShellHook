@@ -5,10 +5,10 @@
 | Item | Value |
 |---|---|
 | Repository | `https://github.com/RingProtocol/FewV2ShellHook` |
-| Source | `src/`, byte-identical to the [verified source](https://etherscan.io/address/0x59255cbc688e402ef980b84668ba1d1c708b6088#code) of the deployed contract at `0x59255CbC688e402eF980B84668bA1d1c708b6088` |
+| Source | Current `src/`: undeployed fee-aware candidate based on public main `730c6fdade1fb2bd0a1b9e0e38a1c353de3ad8a8`. The earlier source matches the existing mainnet deployment; this candidate requires a new address |
 | Compiler | Solidity `0.8.26`, optimizer 200 runs, `via_ir = true`, Cancun |
 | Framework | Foundry |
-| Test snapshot | `153 passed, 0 failed, 0 skipped` (20 unit + 133 mainnet-fork) at Ethereum blocks `25,934,149` and `26,176,789` |
+| Test snapshot | Original release: 153 passed. Fee candidate: see [Protocol Fee Upgrade](docs/PROTOCOL_FEE_UPGRADE.md) for current results |
 
 No previous audit covers this target.
 
@@ -28,7 +28,7 @@ Pinned third-party dependencies, scripts, tests and documents are outside produc
 
 1. One v4 Shell Pool maps to one canonical direct FewV2 pair.
 2. originToken Shell LP supplies PoolManager settlement inventory.
-3. The Hook takes the full v4 swap delta, wraps input directly to the FewV2 pair, swaps, unwraps ERC20 output directly to PoolManager where possible and settles atomically. It adds no separate Hook fee.
+3. The Hook takes the full v4 swap delta, wraps input directly to the FewV2 pair, swaps, unwraps ERC20 output directly to PoolManager where possible and settles atomically. It adds no Ring fee. Configured Uniswap fees are collected in the unspecified origin currency, with quote and settlement using the same path.
 4. Shell `slot0`, liquidity and fee growth are not execution state.
 5. `quote()` simulates the full v4 path. `pseudoTotalValueLocked()` reports FewV2 depth capped by wrapper backing and current PoolManager origin-token cash.
 6. In the base `FewV2ShellHookBase`, `poolInitializer` is the only role and can only register new pools. `FewV2ShellHook` adds an owner (allowlist adds after the timelock, immediate removals, unpause, and replacing the guardian, pool initializer and residual recipient) and a disable-only guardian (pause, remove/cancel underlyings); neither can change a route, move PoolManager balances or withdraw LP.
@@ -67,10 +67,13 @@ Pinned third-party dependencies, scripts, tests and documents are outside produc
 12. Does `whenNotPaused` on `_beforeSwap` cover every swap entry point while leaving LP add/remove unaffected?
 13. Are the inherited `Ownable2Step` and `Pausable` integrations correct with the hook's constructor and permission bits, and does any path to a zero owner remain after the `renounceOwnership()` override?
 14. Can replacing `poolInitializer` or `residualRecipient` change an existing route, redirect anything beyond the Hook's own residual balance, or leave either role at the zero address?
+15. Do the directional fee, Aggregator multiplier, ceiling rounding and input gross-up match Uniswap's current public fee rules, including the signed-int128 arithmetic bound?
+16. Are quote and Universal Router execution charged exactly once, with complete rollback on a bad recipient or a failed user amount limit?
+17. Does resolving `TOKEN_JAR()` from the current controller on each nonzero payment handle controller/recipient rotation and fail closed without granting Ring authority over fees?
 
 The release baseline is the ordinary v4 Hook registry and standard V4Quoter path used by the existing FewV4ShellHook at checked public UniRoute commit `b19fcfbd`. Uniswap review must confirm the new address and exact PoolKey are admitted and indexed on that path.
 
-If Uniswap instead asks Ring to enter the separate direct Aggregator Hook path, that becomes a new review item: `aggregatorHookVersion`, fee-classification interfaces, protocol/type address ID, native ETH direction handling and the official base class's LP prohibition would all need to be resolved. Those requirements are not assumed by this candidate's Shell release path.
+The candidate already exposes Aggregator fee classification for protocol-fee policy. If Uniswap instead asks Ring to enter the separate direct Aggregator Hook routing path, that becomes a new review item: `aggregatorHookVersion`, protocol/type address ID, native ETH direction handling and the official base class's LP prohibition would all need to be resolved. Fee classification alone does not establish routing admission.
 
 ## Evidence
 

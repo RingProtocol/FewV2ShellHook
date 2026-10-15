@@ -1,0 +1,140 @@
+{
+  "date": "2026-10-15",
+  "status": "TESTED_UNDEPLOYED",
+  "source_parent": "79888296cd692ce199066df6ef81554f258bc8e4",
+  "production_source_unchanged_since_parent": true,
+  "production_source_sha256": {
+    "src/FewV2ShellHook.sol": "0df21295afd11c2d82b9e49bcf59f56c03b70211dbbd31364564541c684f0337",
+    "src/FewV2ShellHookBase.sol": "7a1cf69c807571f917e0c7889701b438f5224d46114fdc9fee51c2c1d96396fb",
+    "src/lib/FewV2Price.sol": "1985283a1da68f1ab949bc9ee1b87f595b305a7afe09f931987b970ec11dfe16",
+    "src/lib/FewV2Math.sol": "6bfc8e5c4edfd258fe0a095f414a126883a778f49101ef41c3c5222e492c499d",
+    "src/interfaces/IAggregatorHook.sol": "7d2ad3bf0f2d91e16115fcdfd678508f52837b2f07067ff9070191c86078835b",
+    "src/interfaces/external/IFewV2.sol": "61e312623c79c1f1d689ae3f0b5c01109972f447c2385a51111a402eac03a18a",
+    "src/interfaces/external/IV4FeeRecipient.sol": "a8cbc22e3cc141293d9903d7523fcf621f4335ac135ec00f26987d2a76114d67",
+    "src/interfaces/external/IFewWrappedToken.sol": "41582e71092457b3e041458d869208b632d3350e62e5297a9dc4f06d5525aa05",
+    "src/interfaces/external/IFewFactory.sol": "2f365c647b69cf4a665827259b883ba31b9ba8eaaa75866f04a13f46120592a9"
+  },
+  "toolchain": {
+    "solc": "0.8.26",
+    "optimizer_runs": 200,
+    "via_ir": true,
+    "evm_version": "cancun",
+    "forge": "forge Version: 1.5.1-stable"
+  },
+  "runtime_bytes": 24435,
+  "runtime_margin_bytes": 141,
+  "validation": {
+    "26197122": {
+      "passed": 191,
+      "failed": 0,
+      "skipped": 0,
+      "fee_math_fuzz_runs": 10000
+    },
+    "25934149": {
+      "passed": 191,
+      "failed": 0,
+      "skipped": 0,
+      "fee_math_fuzz_runs": 10000
+    }
+  },
+  "historical_deployment_fixture": {
+    "always_pinned_block": 26197122,
+    "reason": "deployed Hook absent at older global baseline",
+    "old_hook": "0x59255CbC688e402eF980B84668bA1d1c708b6088",
+    "usdc_input_raw": 2000000000,
+    "usdc_quote_and_actual_eth_wei": "841156910525861546",
+    "extra_test_router_cash_wei": "577021548053172",
+    "usdt_input_raw": 2000000000,
+    "usdt_quote_and_actual_eth_wei": "840325029787950006",
+    "official_router_exact_balance_checks": true,
+    "optional_return_approval": true
+  },
+  "production_policy_test": {
+    "fee_controller_impersonation": false,
+    "classification": "automatic flag-rule match, no manual hook family assignment",
+    "family_id_at_recent_block": 11,
+    "initial_packed_fee": 0,
+    "policy_and_updated_packed_fee": 163880,
+    "effective_pips_per_direction": 1000,
+    "four_official_router_modes": true,
+    "real_token_jar_receipts": true,
+    "full_shell_lp_exit": true,
+    "initial_unsynchronized_fee_rejected_by_canary_guard": true
+  },
+  "ci_limitations": {
+    "fork_job_requires_separate_approved_repository_RPC": true,
+    "prior_head_fork_tests": {
+      "passed": 0,
+      "skipped": 162
+    },
+    "slither_fail_on": "none",
+    "prior_head_ir_parse_errors": [
+      "_swapExactOutput",
+      "_exactInputAmount",
+      "quote"
+    ],
+    "independent_external_audit": false
+  },
+  "rehearsal": {
+    "block": 26198549,
+    "script": "script/RehearseEthWbtcRelease.s.sol:RehearseEthWbtcRelease",
+    "result": "PASS",
+    "mainnet_broadcast": false,
+    "wallet_used": false,
+    "candidate_address": "0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088",
+    "salt": "0x0000000000000000000000000000000000000000000000000000000000000fce",
+    "roles_status": "existing operations roles copied for rehearsal, not approved final release roles",
+    "proposed_roles": {
+      "HOOK_OWNER_ADDRESS": "0x61E75d5c5deE4205a5bBCD9fBc40498b693197ad",
+      "GUARDIAN_ADDRESS": "0x61E75d5c5deE4205a5bBCD9fBc40498b693197ad",
+      "POOL_INITIALIZER_ADDRESS": "0x61E75d5c5deE4205a5bBCD9fBc40498b693197ad",
+      "RESIDUAL_RECIPIENT_ADDRESS": "0x61E75d5c5deE4205a5bBCD9fBc40498b693197ad"
+    },
+    "runtime_codehash": "0x5b46ba3a6e4c8fcd62d275ea7bb0fbfef08c6975c74df59596ff6350557b8d28",
+    "steps": [
+      {
+        "type": "CREATE2",
+        "target": "0x4e59b44847b379578588920ca78fbf26c0b4956c",
+        "value": "0x0",
+        "function": null,
+        "input_sha256": "ad7ea87a7d0739c999c9cb389e5b0658da7a52569db516dcbbcda8a300e50687"
+      },
+      {
+        "type": "CALL",
+        "target": "0x000000000004444c5dc75cb358380d2e3de08a90",
+        "value": "0x0",
+        "function": "initialize((address,address,uint24,int24,address),uint160)",
+        "input_sha256": "9787f61605b24cad4dbcd370ec2848ec08e4834ab3ab6844005b739d52807faa"
+      },
+      {
+        "type": "CALL",
+        "target": "0x89a5d5bf00a27d55c02951e49078a5c5771051db",
+        "value": "0x0",
+        "function": "triggerFeeUpdate((address,address,uint24,int24,address))",
+        "input_sha256": "5d5595837474dbd565a971d8714121e8fa1565b35ae8397684ec0097175c8e2a"
+      },
+      {
+        "type": "CALL",
+        "target": "0x66a9893cc07d91d95644aedd05d03f95e1dba8af",
+        "value": "0x5af3107a4000",
+        "function": "execute(bytes,bytes[],uint256)",
+        "input_sha256": "4e5f596548b7f21e5951ca0247650b11cd385c2e6e7bcd10a1bc5572f2c8423d"
+      }
+    ],
+    "initial_packed_fee": 0,
+    "updated_policy_packed_fee": 163880,
+    "eth_input_wei": "100000000000000",
+    "wbtc_quoted_and_actual_output_raw": 290,
+    "wbtc_minimum_output_raw": 288,
+    "wbtc_fee_paid_to_official_tokenjar_raw": 1,
+    "estimated_total_gas_with_forge_margin": 8724170,
+    "estimated_gas_price_gwei": "1.409438768",
+    "estimated_gas_cost_eth": "0.01229618341662256",
+    "estimate_excludes_input_eth": true,
+    "lp_mint_included": false,
+    "check_deployment_passed": true,
+    "actual_output_equals_quote_asserted": true
+  },
+  "mainnet_broadcast": false,
+  "wallet_used": false
+}

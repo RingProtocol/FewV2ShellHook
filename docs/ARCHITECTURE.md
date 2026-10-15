@@ -13,6 +13,7 @@ router opens a v4 swap
   -> canonical FewV2 pair executes the trade
   -> Hook unwraps ERC20 output directly to PoolManager; native output returns through WETH
   -> Hook settles origin output with PoolManager
+  -> Hook pays any configured Uniswap protocol fee to the current TokenJar
   -> router closes the user's balance delta
 ```
 
@@ -43,7 +44,7 @@ Only the current `poolInitializer` may initialize a Hook pool. Registration vali
 
 The wrapper must be the exact address returned by the immutable FewFactory for its underlying token. An arbitrary contract that only imitates the FewToken ABI cannot be registered.
 
-The route is stored once and has no setter. Factory migration, fee changes or dependency changes require a new Hook deployment.
+The route is stored once and has no setter. Factory migration, changes to FewV2's venue fee or dependency changes require a new Hook deployment. Uniswap's directional protocol fee can change through its existing fee controller without a Hook redeployment.
 
 The tick-index check is strict by design. The raw price gap can approach two tick intervals at the boundary. Use a private transaction or bundle so a normal FewV2 trade cannot make the public initialization transaction stale.
 
@@ -59,7 +60,7 @@ This simulation includes the same checks used during execution:
 - live FewV2 reserves and fee math;
 - v4 settlement.
 
-The Hook adds no fee of its own. The FewV2 pair's 30 bps fee is already included in the executed amounts returned by its constant-product math.
+The Hook adds no Ring fee. The Pair's 30 bps LP fee remains included in FewV2 math. A configured Uniswap protocol fee is read by direction from Shell slot0, scaled by the official Aggregator multiplier of 25, and paid to the current fee controller's TokenJar. Exact-input pays from gross output; exact-output adds the grossed-up fee to input. Full-path V4Quoter simulation includes that fee exactly once.
 
 `pseudoTotalValueLocked()` returns the live FewV2 reserves in the Shell currencies' order. Each side is capped by both the wrapper's available underlying backing and PoolManager's current origin-token cash. PoolManager is a singleton, so this cash is shared rather than reserved for one PoolId. The value is a conservative discovery hint; `quote()` at the requested amount and block is still the final executability check.
 
@@ -70,11 +71,12 @@ For exact-input, the Hook:
 1. takes the exact origin input;
 2. gives the canonical wrapper an exact temporary allowance, wraps directly to the FewV2 pair and resets the allowance to zero;
 3. measures the FewV2 output balance change;
-4. checks the exact wrapper-backing and recipient-balance changes, then unwraps and settles the complete output.
+4. checks the exact wrapper-backing and recipient-balance changes, then unwraps and settles the gross output;
+5. pays the configured Uniswap fee from output and returns the net output delta.
 
 ## Exact-output accounting
 
-For a requested user output `u`, the Hook asks FewV2 for the input needed to produce exactly `u`, unwraps `u`, and settles it. The Pair's own 30 bps fee is included in the required input returned by FewV2 math. Small raw-unit fork tests cover exact-output rounding and confirm that the Hook retains no dust.
+For a requested user output `u`, the Hook asks FewV2 for the input needed to produce exactly `u`, unwraps `u`, and settles it. The Pair's own 30 bps fee is included in the required venue input returned by FewV2 math. The configured Uniswap fee is added to the user's input and paid in origin currency; only the venue input is wrapped into the Pair. PoolManager inventory must cover both amounts. Small raw-unit fork tests cover exact-output rounding and confirm that the Hook retains no dust.
 
 ## Price behavior
 

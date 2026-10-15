@@ -82,6 +82,8 @@ contract CheckDeployment is DeployMainnetBase {
         require(hook.residualRecipient() == expectResidualRecipient, "residualRecipient mismatch");
         require(hook.CANONICAL_POOL_FEE() == 3000, "CANONICAL_POOL_FEE must be 3000");
         require(hook.CANONICAL_TICK_SPACING() == 1, "CANONICAL_TICK_SPACING must be 1");
+        require(hook.protocolFeeFlags() == 1 << 11, "wrong Uniswap fee classification");
+        require(hook.protocolFeeMultiplier() == 25, "wrong Aggregator fee multiplier");
         require(hook.addTimelockDelay() == c.addTimelockDelay, "addTimelockDelay mismatch");
         require(hook.owner() == expectOwner, "owner mismatch");
         require(hook.guardian() == expectGuardian, "guardian mismatch");

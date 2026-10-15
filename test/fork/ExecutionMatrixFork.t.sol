@@ -53,7 +53,7 @@ contract ExecutionMatrixForkTest is Test {
     PoolKey internal wethUsdc;
     PoolKey internal wbtcUsdc;
 
-    function setUp() public {
+    function setUp() public virtual {
         string memory rpc = vm.envOr("ETH_RPC_URL", string(""));
         if (bytes(rpc).length == 0) return;
         vm.createSelectFork(rpc, vm.envOr("TEST_FORK_BLOCK", BLOCK));
