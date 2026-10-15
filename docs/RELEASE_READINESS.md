@@ -1,6 +1,6 @@
 # ETH/WBTC release readiness
 
-October 15, 2026. The fee-aware replacement is not deployed or submitted. This closes release-script and validation gaps around the reviewed fee implementation; it does not change any file under `src/` from candidate `79888296cd692ce199066df6ef81554f258bc8e4`.
+Updated October 16, 2026. The fee-aware replacement is deployed and source-verified at [`0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088`](https://etherscan.io/address/0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088#code). ETH/WBTC initialization, official fee activation, both mainnet canaries and LP exit/re-mint are complete; the new routing submission is still pending. See the [mainnet release](RELEASE_MAINNET.md). The readiness tests and rehearsal below were completed before deployment and do not change any file under `src/` from candidate `79888296cd692ce199066df6ef81554f258bc8e4`.
 
 ## Required sequence
 
@@ -48,7 +48,7 @@ These test failures do not establish a Hook quote/execution defect or Uniswap's 
 
 ## Four-step rehearsal
 
-The complete wrapper passed at block 26,198,549. It generated four unsigned simulated transactions: CREATE2 deployment, ETH/WBTC initialization, official fee update and the official Router canary. The candidate remains `0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088`, undeployed. `CheckDeployment` confirmed its salt, constructor configuration and runtime hash after simulation.
+The complete wrapper passed at block 26,198,549. It generated four unsigned simulated transactions: CREATE2 deployment, ETH/WBTC initialization, official fee update and the official Router canary. At that rehearsal snapshot, `0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088` was undeployed. `CheckDeployment` confirmed its salt, constructor configuration and runtime hash after simulation. Its later deployment and mined transactions are recorded separately in the mainnet release.
 
 The raw packed fee changed from 0 to 163880. The 0.0001 ETH canary quoted and delivered 290 raw WBTC, with minimum 288; the official TokenJar received 1 raw WBTC protocol fee. The tiny trade's fee rounds up to one WBTC base unit; it should not be described as an exact 10 bps realized charge at every amount.
 
@@ -56,13 +56,13 @@ Forge estimated 8,724,170 total gas including its margin, at 1.409438768 gwei, o
 
 ## CI and review limits
 
-The repository's fork CI requires its own approved `ETH_RPC_URL` secret. At reviewed head `7988829`, it reported success after skipping all 162 fork cases because that secret was missing; 20 hermetic cases did execute. Local zero-skip fork results above must not be presented as executed GitHub fork coverage.
+The repository's fork CI requires its own approved `ETH_RPC_URL` secret. At reviewed head `7988829`, it reported success after skipping all 162 fork cases because that secret was missing; 20 hermetic cases did execute. At final tested head `ac873d3849916706eaf0c7eb26472936ac7e5a21`, 20 hermetic cases passed and 171 fork cases were skipped. Its tree matches merged deployment source `928580478ab4eed4f2d25ee0b2aff92ffbc5a97a`. Local zero-skip fork results above must not be presented as executed GitHub fork coverage.
 
 The existing Slither workflow uses `fail-on: none`. Its reviewed output included 12 findings and IR parse errors for `_swapExactOutput`, `_exactInputAmount` and `quote`; it is not a complete static-analysis pass. Those paths were manually checked and covered by local execution tests, but no independent external audit covers this replacement. Later CI status must be tied to its exact commit and read with these limits.
 
 ## Evidence and references
 
-The [machine-readable readiness evidence](protocol-fee-evidence/release-readiness-2026-10-15.json) records test results, production-source hashes and rehearsal scope. Earlier three-step rehearsals omitted explicit fee activation and remain historical; they must not be used as the final fee-payment proof. Mainnet deployment, LP movement, a signed canary and a new whitelist submission remain unperformed.
+The [machine-readable readiness evidence](protocol-fee-evidence/release-readiness-2026-10-15.json) records the pre-deployment test results, production-source hashes and rehearsal scope; its `TESTED_UNDEPLOYED` status applies to that dated snapshot. Earlier three-step rehearsals omitted explicit fee activation and remain historical. Use the separate [mainnet evidence](protocol-fee-evidence/mainnet-2026-10-16.json) for the completed deployment, LP movement, mined canaries and fee payments. A new whitelist submission remains unperformed.
 
 - [Official fee adapter and permissionless update](https://github.com/Uniswap/protocol-fees/blob/main/src/feeAdapters/V4FeeAdapter.sol)
 - [Official Aggregator protocol-fee calculation](https://github.com/Uniswap/v4-hooks-public/blob/5b73674d8db8ff9ef4f4a09cfee5f12302d68248/src/aggregator-hooks/ProtocolFees.sol)
