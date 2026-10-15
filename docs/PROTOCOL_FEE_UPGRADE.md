@@ -1,8 +1,10 @@
-# Protocol fee compatibility candidate
+# Protocol fee compatibility release
 
-**October 15, 2026 — fee-aware replacement; not deployed or submitted.**
+**October 16, 2026 — deployed and source-verified; routing resubmission not yet sent.**
 
-The candidate preserves `origin token -> FewToken -> canonical FewV2 Pair -> FewToken -> origin token` and adds Uniswap protocol-fee accounting around settlement. It follows the fee calculation and Aggregator classification in Uniswap's public contracts. Pair pricing, its 30 bps LP fee, wrapper checks, route registration, Shell LP ownership and governance permissions remain unchanged.
+The replacement is live at [`0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088`](https://etherscan.io/address/0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088#code), built from merged commit `928580478ab4eed4f2d25ee0b2aff92ffbc5a97a`. Native ETH/WBTC initialization, the official fee update, both Router canaries and full LP exit/re-mint are complete. See the [mainnet release and transaction evidence](RELEASE_MAINNET.md). Rehearsal sections below preserve the pre-deployment evidence and estimates.
+
+The release preserves `origin token -> FewToken -> canonical FewV2 Pair -> FewToken -> origin token` and adds Uniswap protocol-fee accounting around settlement. It follows the fee calculation and Aggregator classification in Uniswap's public contracts. Pair pricing, its 30 bps LP fee, wrapper checks, route registration, Shell LP ownership and governance permissions remain unchanged.
 
 This addresses a concrete compatibility gap. It does **not** establish why Uniswap rejected submission `65899411286`, or guarantee approval of the replacement.
 
@@ -23,7 +25,7 @@ This addresses a concrete compatibility gap. It does **not** establish why Unisw
 
 `protocolFeeFlags()` returns `1 << 11`, the classification used by Uniswap's public `BaseAggregatorHook`. `protocolFeeMultiplier()` returns `25`. The effective fee is variable: these constants do not impose a fixed 5 or 10 bps charge.
 
-For example, a raw directional rate of 40 becomes 1,000 pips, or 10 bps. This example is a test configuration, not the current live rate or a promise about future Uniswap policy.
+For example, a raw directional rate of 40 becomes 1,000 pips, or 10 bps. This is an illustrative calculation. The current recorded policy is in the mainnet release; neither is a promise about future Uniswap policy.
 
 ## Settlement and authority
 
@@ -33,7 +35,7 @@ The existing full-path V4Quoter simulates this exact execution path, so the fee 
 
 Every nonzero payment resolves the current controller and recipient. Neither owner, guardian, initializer nor residual recipient can select the protocol recipient or override the rate. There is no cached recipient to become stale after a rotation. A nonzero fee without a usable `TOKEN_JAR()` fails closed; this intentionally differs from the public reference's optional missing-recipient fallback.
 
-The public `BaseAggregatorHook` is a reference for fees, not a new parent contract. Inheriting it would prohibit Shell LP additions and change the existing design. The candidate keeps permission bits `0x2088`, the ordinary v4 routing path, and standard router calldata. Fee classification alone does not establish routing admission or a separate direct Aggregator routing integration.
+The public `BaseAggregatorHook` is a reference for fees, not a new parent contract. Inheriting it would prohibit Shell LP additions and change the existing design. The release keeps permission bits `0x2088`, the ordinary v4 routing path, and standard router calldata. Fee classification alone does not establish routing admission or a separate direct Aggregator routing integration.
 
 ## Validation
 
@@ -70,7 +72,7 @@ git diff --check
 
 ## Deployment and submission
 
-The source base is public main commit `730c6fdade1fb2bd0a1b9e0e38a1c353de3ad8a8`. The local branch is `fix/uniswap-protocol-fees`. The existing address `0x59255CbC688e402eF980B84668bA1d1c708b6088` remains unchanged and must not be described as patched.
+The implementation was reviewed on `fix/uniswap-protocol-fees` against public base `730c6fdade1fb2bd0a1b9e0e38a1c353de3ad8a8`, then merged as `928580478ab4eed4f2d25ee0b2aff92ffbc5a97a` in PR #1. The original address `0x59255CbC688e402eF980B84668bA1d1c708b6088` remains unchanged and must not be described as patched. Steps 1–5 below describe the completed release procedure; the new routing submission in step 6 is still pending.
 
 1. Review this candidate and freeze its source, dependencies, compiler and constructor configuration. Confirm final owner, guardian, initializer and residual recipient. A rehearsal that copies existing roles does not approve those roles for a new release.
 2. Mine a new CREATE2 salt with `script/MineHookAddress.s.sol`, using the final native ETH mode and constructor values. Rehearse `DeployMainnetNativeEth` without `--broadcast`; check the predicted address is empty and deployment assertions pass. A changed init code or role changes the address.
@@ -80,7 +82,7 @@ The source base is public main commit `730c6fdade1fb2bd0a1b9e0e38a1c353de3ad8a8`
 6. Resubmit the **new deployed, verified address**, final source revision and fee proof under the existing reference. Ask Uniswap to confirm the Aggregator classification, multiplier and TokenJar settlement satisfy their current policy. Include the already approved FewV4ShellHook as context, not as proof of approval for FewV2.
 7. Approval, routing discovery, executable API quotes and a bounded live swap are separate acceptance checks. Stop activation if source verification, role readback, fee collection, quote parity, LP withdrawal or router amount limits fail.
 
-No deployment, funding transaction, LP movement, canary transaction or external submission has been performed for this candidate. The local `fewv2-ops` keystore requires an interactive unlock or a local password-file configuration before signing. Do not send a password or private key through chat.
+Deployment, bounded Shell LP funding, mainnet canaries and the LP withdrawal/re-mint are complete. The new-address routing form is prepared but has not been submitted. This release does not establish Labs approval or default frontend routing.
 
 ## Initial pool: native ETH/WBTC
 
@@ -127,7 +129,7 @@ The rehearsal copies the four existing roles solely to validate deployment and p
 
 | Item | Simulation result |
 |---|---|
-| Candidate address | `0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088` — undeployed |
+| Address predicted by this historical rehearsal | `0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088` — subsequently deployed; see current mainnet record |
 | Salt | `0x0000000000000000000000000000000000000000000000000000000000000fce` |
 | Permission bits | `0x2088` |
 | Estimated deployment gas | 7,799,730 including Forge estimation margin |

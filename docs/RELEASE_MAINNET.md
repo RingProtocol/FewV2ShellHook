@@ -1,108 +1,97 @@
-# Mainnet Release
+# Mainnet Release: ETH/WBTC Protocol-Fee Replacement
 
-This records the **original pre-protocol-fee deployment**. Its source is pinned to public commit `730c6fdade1fb2bd0a1b9e0e38a1c353de3ad8a8`; current fee-aware `src/` is a new, undeployed candidate. Use the pinned revision to reproduce this historical release.
+October 16, 2026. FewV2ShellHook is deployed and source-verified on Ethereum mainnet at [`0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088`](https://etherscan.io/address/0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088#code). Native ETH/WBTC initialization, canonical Pair registration, the official protocol-fee update, two Universal Router canaries and a complete Shell LP withdrawal/re-mint have passed. The replacement is **not yet submitted or approved for Uniswap routing**; default App / Quote API route selection is unverified.
 
-`FewV2ShellHook` is live on Ethereum mainnet at [`0x59255CbC688e402eF980B84668bA1d1c708b6088`](https://etherscan.io/address/0x59255cbc688e402ef980b84668ba1d1c708b6088#code), in native ETH mode, with verified source. It was deployed on October 12, 2026, together with one Shell Pool, ETH/USDC, which holds a small Shell position and passed a canary swap at the quoted amount.
+The [October 12 ETH/USDC deployment](RELEASE_MAINNET_2026-10-12.md) remains a separate, unchanged contract. Its PoolId and LP position are not migrated into this release.
 
-Not done yet:
+## Release facts
 
-- The other seven recommended Shell Pools are not initialized. They wait for Uniswap's routing review.
-- The owner, guardian, `poolInitializer` and `residualRecipient` are still the operations account that deployed the Hook. Ownership moves to a Safe next; role changes will be recorded below.
+| Field | Verified value |
+| --- | --- |
+| Chain | Ethereum mainnet, chain ID 1 |
+| Hook | `0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088` |
+| Deployed source | [`928580478ab4eed4f2d25ee0b2aff92ffbc5a97a`](https://github.com/RingProtocol/FewV2ShellHook/tree/928580478ab4eed4f2d25ee0b2aff92ffbc5a97a), merged in [PR #1](https://github.com/RingProtocol/FewV2ShellHook/pull/1) |
+| Runtime codehash | `0x5b46ba3a6e4c8fcd62d275ea7bb0fbfef08c6975c74df59596ff6350557b8d28` |
+| Runtime size | 24,435 bytes; 141 bytes below EIP-170 |
+| Compiler | Solidity 0.8.26, via-IR, optimizer 200 runs, Cancun |
+| Deployment | [CREATE2 transaction](https://etherscan.io/tx/0x9e77106cc26cf7e1d72b5d25e54fca7e0ebd6115675ba5cfd0f7c50ecb0a5be5), block 26,198,967 |
+| CREATE2 salt | `0x0000000000000000000000000000000000000000000000000000000000000fce` |
+| Hook permissions | `0x2088`: beforeInitialize, beforeSwap, beforeSwapReturnsDelta |
+| Source verification | Etherscan verified source read back through its API; live runtime and production-source hashes match the release evidence |
+| Original mainnet acceptance | Block 26,199,057 |
+| Read-only reconciliation | Block 26,199,283; runtime, PoolId, Pair, roles, LP, official policy and all 16 recorded receipts matched |
+| Independent external audit | None for this release; earlier reviews of materially different code do not cover it |
 
-## Release record
+Documentation-only commits after the deployed source revision do not change the contract. The [machine-readable evidence](protocol-fee-evidence/mainnet-2026-10-16.json) contains production-source SHA-256 hashes, transactions, fee receipts and the exact live-read snapshot.
 
-Configuration was read back from the contract at block 26,177,142.
+## Pool and permissions
 
 | Field | Value |
-|---|---|
-| Source | `src/` at public commit `730c6fdade1fb2bd0a1b9e0e38a1c353de3ad8a8`; see [Verify the deployment](#verify-the-deployment) |
-| Toolchain | forge 1.5.1-stable, solc 0.8.26, via-IR, 200 runs, cancun |
-| Tests | All passed at blocks 25,934,149 and 26,176,789 |
-| Mode | Native ETH (`useNativeCurrencyForWeth = true`) |
+| --- | --- |
+| PoolKey | Native ETH / WBTC, fee 3000, tickSpacing 1, new Hook above |
+| PoolId | `0x504a3b31c9cca7d5f66ae7ef3e94a845473b61b67b7061e1c48541f65280a08d` |
+| Execution Pair | `0x00B06862dE00a7e67a2d6d3FbEEa592A32460de0` |
+| Canonical fwETH | `0xa250CC729Bb3323e7933022a67B52200fE354767` |
+| Canonical fwWBTC | `0x2078f336Fdd260f708BEc4a20c82b063274E1b23` |
 | PoolManager | `0x000000000004444c5dc75cB358380D2e3dE08A90` |
-| FewFactory | `0x7D86394139bf1122E82FDF45Bb4e3b038A4464DD` |
-| FewV2Factory | `0xeb2A625B704d73e82946D8d026E1F588Eed06416` |
-| WETH | `0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2` |
-| V4Quoter | `0x52F0E24D1c21C8A0cB1e5a5dD6198556BD9E1203` |
-| Owner, guardian, `poolInitializer`, `residualRecipient` | All `0x61E75d5c5deE4205a5bBCD9fBc40498b693197ad`, the operations account. No pending owner |
-| Role changes | None |
-| `addTimelockDelay` | 172,800 s (48 hours) |
-| Genesis allowlist | WETH `0xC02a…6Cc2`, USDC `0xA0b8…eB48`, USDT `0xdAC1…1ec7`, DAI `0x6B17…1d0F`, WBTC `0x2260…C599`, USDR `0x4EA4…a913` |
-| Salt | `0x0000000000000000000000000000000000000000000000000000000000007072`, permission bits `0x2088` |
-| Deployment | [`0x3492eb23…ba914a`](https://etherscan.io/tx/0x3492eb2383b6706c775835db8e47720e0973cc907cf1df663b9a6fd87aba914a), block 26,177,040, through the CREATE2 deployer `0x4e59b44847b379578588920cA78FbF26c0B4956C` |
-| Runtime | 23,219 bytes, codehash `0x1e96d6f2e2ff6e91fec4c8d1a0e3750e9736f5618743621ec9eb5ebc69bcbdd7` |
-| Constructor args | 608 bytes, listed in the [appendix](#appendix-constructor-arguments) |
-| CheckDeployment | PASS with the CREATE2 recomputation, right after deployment and again after the canary |
-| Etherscan | [Verified source](https://etherscan.io/address/0x59255cbc688e402ef980b84668ba1d1c708b6088#code), on the second, identical submission |
+| PositionManager | `0xbD216513d74C8cf14cf4747E6AaA6420FF64ee9e` |
+| Owner / guardian / initializer / residual recipient | All `0x61E75d5c5deE4205a5bBCD9fBc40498b693197ad`, the existing operations account |
+| Swap state | Unpaused at the reconciliation block |
+| New-underlying add delay | 172,800 seconds (48 hours) |
 
-## Transactions
+Initialization registered the canonical direct Pair automatically. There is no owner route setter. The existing operations account still holds the roles; this record does not claim a Safe migration. Pausing swaps does not prevent standard LP withdrawals.
 
-All five transactions came from the operations account. Together they used 6,369,686 gas, about 0.00232 ETH.
+The shell supplies the v4 entry point and PoolManager working inventory. Execution price, depth and the 30 bps venue fee come from FewV2. The shell curve is bypassed and its LP position does not earn the FewV2 LP fee.
 
-| Step | Transaction | Block | Gas |
-|---|---|---|---|
-| Deploy the Hook | [`0x3492eb23…ba914a`](https://etherscan.io/tx/0x3492eb2383b6706c775835db8e47720e0973cc907cf1df663b9a6fd87aba914a) | 26,177,040 | 5,384,019 |
-| Initialize ETH/USDC, sent privately through MEV Blocker | [`0x0a25929e…8cef11`](https://etherscan.io/tx/0x0a25929eb9995f39739ee56e60422c1b928de5d4d9f017f057976f9d198cef11) | 26,177,071 | 247,528 |
-| Permit2 approval of USDC to PositionManager | [`0x233328c1…1c46a2`](https://etherscan.io/tx/0x233328c1cfdcf089910bc31ae8d3f4dce59400e955b86552bbdb97ab471c46a2) | 26,177,081 | 47,590 |
-| Mint the Shell position | [`0xef2a8db2…8d3180`](https://etherscan.io/tx/0xef2a8db2dd01689f5a60bbacbbaaa755bfef984235c402e83e975cfef48d3180) | 26,177,083 | 381,503 |
-| Canary swap | [`0xcdd39cd7…084ecd`](https://etherscan.io/tx/0xcdd39cd789bceae5a4989690816e864b7e657c93f0bcaa21719700c7e7084ecd) | 26,177,094 | 309,046 |
+## Official protocol fees
 
-## ETH/USDC Shell Pool
+The Hook classifies as Aggregator (`1 << 11`) and uses multiplier 25, following Uniswap's public reference. It reads the directional PoolManager rate and pays the current controller's TokenJar; Ring roles cannot set either the protocol rate or recipient. There is no additional Ring Hook fee.
 
-| Field | Value |
-|---|---|
-| PoolKey | native ETH / USDC, fee 3000, tick spacing 1, Hook above |
-| PoolId | `0xbb417423a73e9d59747fe72f402f185765b09f177b2839728cb8845896890749` |
-| FewV2 pair | `0x54222F404dcfAc705322045F01D100380b871450` (fwETH `0xa250CC729Bb3323e7933022a67B52200fE354767` / fwUSDC `0x0492560FA7Cfd6A85E50D8bE3F77318994F8f429`) |
-| Initial price | `sqrtPriceX96` 3979124211960882247824424, tick −197,991, the FewV2 price when the transaction was built |
-| Advertised depth after the canary | 3,483.94 ETH and 542,884.34 USDC, limited by the FewToken wrappers' backing |
-| PoolManager balances | 52,521.27 ETH and 46,661,899.28 USDC |
+| Field | Reconciliation snapshot |
+| --- | --- |
+| Official controller | `0x89A5D5bF00a27D55c02951E49078a5C5771051dB` |
+| Official TokenJar | `0xf38521f130fcCF29dB1961597bc5d2B60F995f85` |
+| Packed PoolManager fee / official policy | Both 163880 |
+| Effective directional rate | 1,000 pips (10 bps) each direction |
+| Rounding | Up to whole token base units; tiny trades need not realize exactly 10 bps |
 
-The Shell position is tokenId 455796, owned by the operations account. It covers the full range with liquidity 502,236,084,453, funded with 0.009999999999990262 ETH and 25.224109 USDC.
+The [permissionless official fee update](https://etherscan.io/tx/0x3e0df04066b12c318aeece8c464546b2ca7a5652c80d9cde94455009cf9e063f) was executed after initialization. Fee rates are policy snapshots, not fixed future charges. A nonzero fee with an unusable recipient reverts. These implementation checks do not establish Uniswap Labs acceptance of this fee treatment.
 
-The canary sold 0.0001 ETH for 251,451 raw USDC (0.251451 USDC), the amount V4Quoter quoted, and was executed against the FewV2 pair above.
+## Mainnet canaries and LP exit
 
-## Verify the deployment
+Both swaps used the official Universal Router. Their actual outputs equalled their recorded quotes for those executions.
 
-The source files verified on Etherscan are byte-identical to `src/` at the pinned original-release revision above. Check out that revision before using the commands below; the fee-aware candidate produces different init code and a different address. `CheckDeployment` sends no transaction: it builds the init code from this repository, recomputes the CREATE2 address from the salt and the constructor values, and checks every immutable, role and allowlist entry against the live contract.
+| Direction | Input | Quote and actual output | Official TokenJar receipt | Transaction |
+| --- | --- | --- | --- | --- |
+| ETH → WBTC | 0.0001 ETH | 294 WBTC base units (0.00000294 WBTC) | 1 WBTC base unit | [ETH to WBTC](https://etherscan.io/tx/0x5ba91870aa57fd65bf54f677798e3e8e9c143833a59fe278a0d0b5ab45729830) |
+| WBTC → ETH | 500 WBTC base units (0.000005 WBTC) | 168196165941456 wei ETH | 168364530472 wei ETH | [WBTC to ETH](https://etherscan.io/tx/0x743c2dfcb0acbb52f2fcfc9afe0732453d292c33a72852fb3c0f414f7cf08ce4) |
+
+Token transfers and Hook fee events confirm the WBTC fee; the native ETH payments to TokenJar and the trader were also checked in the transaction call trace. Quote equality applies to these executions and does not promise unchanged cross-block prices.
+
+Position #462830 was [fully withdrawn and burned](https://etherscan.io/tx/0x53d08ea80b3607a8f7c6ed4658ef4f4bf7b99bf5e33508095207074a356ae6e0). It returned the deposit less 1 wei ETH and 1 WBTC base unit due to rounding. The [replacement position #462837](https://etherscan.io/tx/0xf93d225d4624f054cf361cb80465d56cc357a7aae59be28af38150ed7cb15b20) remains owned by the operations account, with liquidity 4,301,771,009. It was funded with 0.002499999999788130 ETH and 0.00007403 WBTC. Its nonzero liquidity and owner were read back at the reconciliation block.
+
+All 16 release transactions, including approvals and cleanup, have successful receipts. Total gas cost was 0.003841662987349744 ETH. This is execution cost, not a forecast or additional LP capital. Full transaction hashes and raw units are in the evidence JSON.
+
+## Validation and remaining checks
+
+- Before deployment, two local fixed-block runs at global fork blocks 26,197,122 and 25,934,149 each passed 191 tests, with 0 failures and 0 skips. Fee arithmetic used 10,000 fuzz cases per run. Historical-deployment fixtures independently pin block 26,197,122. See [Release Readiness](RELEASE_READINESS.md).
+- The tested tree at `ac873d3849916706eaf0c7eb26472936ac7e5a21` matches the merged deployment source. GitHub CI on that head executed 20 hermetic cases and skipped 171 RPC-dependent cases. It is not evidence that GitHub ran the full fork suite.
+- This documentation refresh re-read existing chain state and receipts; it did not broadcast a new transaction or rerun the full test suite.
+- The new-address allowlist application is prepared, not submitted. The previous rejection's precise reason is unknown. Labs confirmation of fee compatibility, allowlisting, exact PoolKey discovery and unforced production quote selection remain separate checks.
+
+## Reproduce the deployment check
+
+Use the pinned deployed source, its submodules and the constructor configuration below. Set an RPC only in the local environment. This command is read-only; do not add a broadcast flag.
 
 ```sh
+git checkout 928580478ab4eed4f2d25ee0b2aff92ffbc5a97a
 git submodule update --init --recursive
-export ETH_RPC_URL=<Ethereum mainnet RPC URL>
+export HOOK_ADDRESS=0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088
+export HOOK_SALT=0x0000000000000000000000000000000000000000000000000000000000000fce
 export POOL_INITIALIZER_ADDRESS=0x61E75d5c5deE4205a5bBCD9fBc40498b693197ad
 export RESIDUAL_RECIPIENT_ADDRESS=0x61E75d5c5deE4205a5bBCD9fBc40498b693197ad
 export HOOK_OWNER_ADDRESS=0x61E75d5c5deE4205a5bBCD9fBc40498b693197ad
 export GUARDIAN_ADDRESS=0x61E75d5c5deE4205a5bBCD9fBc40498b693197ad
-export HOOK_ADDRESS=0x59255CbC688e402eF980B84668bA1d1c708b6088
-export HOOK_SALT=0x0000000000000000000000000000000000000000000000000000000000007072
 export EXPECT_NATIVE_ETH=true
 forge script script/CheckDeployment.s.sol:CheckDeployment --rpc-url "$ETH_RPC_URL"
-```
-
-A match ends with `PASS` and `CREATE2 verified: true`. The four role variables are constructor inputs, so keep them as above after a role changes and set `EXPECT_OWNER`, `EXPECT_GUARDIAN`, `EXPECT_POOL_INITIALIZER` or `EXPECT_RESIDUAL_RECIPIENT` to the current holder instead.
-
-## Appendix: constructor arguments
-
-ABI-encoded in constructor order: the five dependencies, the native ETH flag, `poolInitializer`, `residualRecipient`, owner, guardian, `addTimelockDelay`, then the genesis allowlist array.
-
-```text
-000000000000000000000000000000000004444c5dc75cb358380d2e3de08a90
-0000000000000000000000007d86394139bf1122e82fdf45bb4e3b038a4464dd
-000000000000000000000000eb2a625b704d73e82946d8d026e1f588eed06416
-000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
-00000000000000000000000052f0e24d1c21c8a0cb1e5a5dd6198556bd9e1203
-0000000000000000000000000000000000000000000000000000000000000001
-00000000000000000000000061e75d5c5dee4205a5bbcd9fbc40498b693197ad
-00000000000000000000000061e75d5c5dee4205a5bbcd9fbc40498b693197ad
-00000000000000000000000061e75d5c5dee4205a5bbcd9fbc40498b693197ad
-00000000000000000000000061e75d5c5dee4205a5bbcd9fbc40498b693197ad
-000000000000000000000000000000000000000000000000000000000002a300
-0000000000000000000000000000000000000000000000000000000000000180
-0000000000000000000000000000000000000000000000000000000000000006
-000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
-000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48
-000000000000000000000000dac17f958d2ee523a2206206994597c13d831ec7
-0000000000000000000000006b175474e89094c44da98b954eedeac495271d0f
-0000000000000000000000002260fac5e5542a773aa44fbcfedf7c193bc2c599
-0000000000000000000000004ea40dcee961675683e0a2e1721bd49cb9bca913
 ```

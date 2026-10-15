@@ -21,13 +21,14 @@ The v4 pool is the route and settlement entry point. The FewV2 pair supplies the
 
 ## Status
 
-Current `src/` is an **undeployed protocol-fee candidate**. The existing mainnet address below runs the earlier implementation and does not gain this behavior. See [Protocol Fee Upgrade](docs/PROTOCOL_FEE_UPGRADE.md).
+The protocol-fee replacement is **deployed and source-verified on Ethereum mainnet** at [`0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088`](https://etherscan.io/address/0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088#code). The deployed source is pinned to [`9285804`](https://github.com/RingProtocol/FewV2ShellHook/tree/928580478ab4eed4f2d25ee0b2aff92ffbc5a97a); the documentation update does not change contract source. See [Mainnet Release](docs/RELEASE_MAINNET.md) and [Protocol Fee Upgrade](docs/PROTOCOL_FEE_UPGRADE.md).
 
-The replacement's first initialization and canary target is **native ETH/WBTC**, backed by the canonical FewV2 fwETH/fwWBTC Pair. Use `InitializeEthWbtcPool`, `UpdateEthWbtcProtocolFee`, then `SmokeSwapEthWbtc`; the canary requires the PoolManager fee to match the nonzero official policy. See [Release Readiness](docs/RELEASE_READINESS.md). The older ETH/USDC scripts remain available for the historical deployment.
-
-- Deployed on Ethereum mainnet on October 12, 2026, in native ETH mode, at [`0x59255CbC688e402eF980B84668bA1d1c708b6088`](https://etherscan.io/address/0x59255cbc688e402ef980b84668ba1d1c708b6088#code). Only the ETH/USDC Shell Pool is open, with a small Shell position. See [Mainnet Release](docs/RELEASE_MAINNET.md).
+- The initialized pool is **native ETH/WBTC**, bound to canonical FewV2 fwETH/fwWBTC Pair `0x00B06862dE00a7e67a2d6d3FbEEa592A32460de0`. The official protocol-fee update, two Universal Router canaries and a complete Shell LP withdrawal/re-mint were executed. At the recorded mainnet snapshot, both canaries exactly matched their quotes and the effective official fee was 1,000 pips (10 bps) per direction, subject to integer rounding.
+- PositionManager NFT #462837 retains a small Shell position funded with approximately 0.0025 ETH and 0.00007403 WBTC. This is settlement inventory, not the FewV2 execution reserves, and earns no FewV2 LP fee.
+- The new address has **not been submitted or approved for routing** as of this record. Default Uniswap App / Quote API route selection is unverified. Local validation at global fork blocks 26,197,122 and 25,934,149 passed 191 tests each, with no failures or skips; this is separate from the mainnet canaries.
+- The previous ETH/USDC Hook at `0x59255CbC688e402eF980B84668bA1d1c708b6088` remains unchanged. Its deployment is archived in [October 12 release](docs/RELEASE_MAINNET_2026-10-12.md); the replacement does not inherit its PoolId, LP position or routing approval.
 - Not audited. An earlier, materially different implementation was reviewed by ABDK; that review does not cover this code.
-- The original release passed 153 tests. Candidate fee-accounting validation is recorded in [Protocol Fee Upgrade](docs/PROTOCOL_FEE_UPGRADE.md).
+- The original pre-fee release passed 153 tests. The replacement's 191-test validation and test/CI limits are recorded in [Release Readiness](docs/RELEASE_READINESS.md).
 
 ## How it works
 
@@ -95,22 +96,17 @@ References:
 
 ## Validation
 
-The original pre-fee release passed all 153 tests at Ethereum mainnet block `25,934,149` (the CI pin) and at block `26,176,789`, against the real Uniswap v4 PoolManager, PositionManager, V4Quoter and Universal Router plus live Ring factories, wrappers and FewV2 pairs.
+The fee-aware release passed the full local suite at two global mainnet fork blocks before deployment. Historical-deployment regressions independently pin block 26,197,122 because the old Hook did not exist at the older global baseline.
 
-| Suite | Passed |
-|---|---:|
-| Unit tests | 20 |
-| Core mainnet-fork tests, including malicious-token registration and callback scenarios | 71 |
-| Shell LP lifecycle, recovery and adversarial tests | 20 |
-| Governance: allowlist, timelock, pause and roles | 17 |
-| Malicious origin tokens: fee-on-transfer, phantom balance, reentrancy, negative rebase | 9 |
-| ETH, WETH and token/token execution matrix | 9 |
-| WETH-mode Universal Router tests | 4 |
-| ETH/WBTC parity and ETH/USDT Universal Router tests | 2 |
-| Duplicate-route release gate | 1 |
-| **Total** | **153 passed, 0 failed, 0 skipped** |
+| Check | Result |
+| --- | --- |
+| Local suite, global block 26,197,122 | 191 passed, 0 failed, 0 skipped |
+| Local suite, global block 25,934,149 | 191 passed, 0 failed, 0 skipped |
+| Fee arithmetic fuzz | 10,000 full-precision reference cases per local run |
+| Mainnet canaries | Both ETH/WBTC directions matched their quotes and paid the official TokenJar |
+| Mainnet Shell LP | Full withdrawal, burn and re-mint checked |
 
-This is fork evidence. It is not an audit, Uniswap acceptance, production traffic or proof of safety for unlimited capital. Details and limits are in [Validation](docs/VALIDATION.md).
+The original pre-fee release's 153 tests are historical. Final implementation CI executed 20 hermetic cases and skipped 171 RPC-dependent cases; those skips are not fork coverage. No independent external audit covers this release. See [Release Readiness](docs/RELEASE_READINESS.md) for test scope and [Mainnet Release](docs/RELEASE_MAINNET.md) for mined transactions. This documentation refresh does not rerun the suite or establish Uniswap approval or production traffic.
 
 ## Build and test
 
