@@ -180,8 +180,8 @@ abstract contract DeployMainnetBase is Script {
         console2.log("Next steps:");
         console2.log("  1. Verify source and immutable configuration on Etherscan");
         console2.log("     Use the constructor args printed above for forge verify-contract");
-        console2.log("  2. Initialize pools from the poolInitializer account");
-        console2.log("  3. Submit this Hook address to the Uniswap Hook Registry and UniRoute process");
-        console2.log("  4. Confirm Quote API discovery and run a bounded smoke swap after approval");
+        console2.log("  2. Initialize the selected pool and synchronize the official protocol fee");
+        console2.log("  3. Verify bounded Router execution, TokenJar receipts and LP recovery");
+        console2.log("  4. Submit the verified new address, then confirm routing discovery and execution");
     }
 }

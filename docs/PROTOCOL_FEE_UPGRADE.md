@@ -1,6 +1,6 @@
 # Protocol fee compatibility candidate
 
-**October 15, 2026 — implemented locally; not deployed or submitted.**
+**October 15, 2026 — fee-aware replacement; not deployed or submitted.**
 
 The candidate preserves `origin token -> FewToken -> canonical FewV2 Pair -> FewToken -> origin token` and adds Uniswap protocol-fee accounting around settlement. It follows the fee calculation and Aggregator classification in Uniswap's public contracts. Pair pricing, its 30 bps LP fee, wrapper checks, route registration, Shell LP ownership and governance permissions remain unchanged.
 
@@ -41,20 +41,20 @@ Compiler settings remain Solidity 0.8.26, via-IR, optimizer 200 runs, Cancun.
 
 | Check | Snapshot | Result |
 |---|---|---|
-| Full Foundry suite, including the ETH/WBTC fee canary | Ethereum block 26,197,122 | 182 passed, 0 failed, 0 skipped |
-| Full Foundry suite | Original CI fork block 25,934,149 | 182 passed, 0 failed, 0 skipped |
+| Full Foundry suite, including the ETH/WBTC fee canary | Ethereum block 26,197,122 | 191 passed, 0 failed, 0 skipped |
+| Full Foundry suite | Original CI fork block 25,934,149 | 191 passed, 0 failed, 0 skipped |
 | Fee arithmetic fuzz | Each suite above | 10,000 cases against independent full-precision ceiling calculations |
 | CREATE2 deployment rehearsal | Ethereum block 26,197,052 | Passed; no broadcast or wallet used |
 | Deploy + ETH/WBTC init + official-router canary rehearsal | Ethereum block 26,197,122 | Passed; 3 simulated transactions, no signing/broadcast |
 | Production runtime | `FewV2ShellHook` | 24,435 bytes; 141 bytes below EIP-170 limit |
 
-One additional test pays the real deployed mainnet TokenJar through the real controller ABI on each fork, in all four native ETH/USDC swap modes. PoolManager fee activation is simulated locally; this does not prove governance will enable fees or admit the route.
+Fee tests pay the real deployed mainnet TokenJar through the real controller ABI. The production-Hook policy test additionally uses the actual policy classification and permissionless adapter.triggerFeeUpdate, with no fee-controller impersonation; it then runs all four ETH/WBTC modes and fully withdraws Shell LP. These local forks do not activate mainnet fees or establish routing admission.
 
 The fee tests cover native ETH, WETH and token/token routes, both directions, exact input/output, asymmetric rates, maximum PoolManager-supported rates, small raw-unit rounding, recipient/controller rotation, zero fee, invalid recipients, full settlement inventory and dust. The official Universal Router tests cover both WETH/USDC directions and amount modes with nonzero fees, plus atomic failure when the exact-output input cap is insufficient.
 
 The ETH/WBTC canary test also runs all four official-router swap modes with nonzero asymmetric fees, confirms real TokenJar receipts in ETH and WBTC, and fully withdraws the Shell LP position afterward.
 
-The original 153-test release is historical. The candidate suite adds 20 fee-specific tests and repeats 9 inherited execution tests, yielding 182 executed tests. Passing fork tests is not an independent security audit or a mainnet deployment.
+The original 153-test release is historical. The final suite adds 20 fee-specific tests, five historical-deployment quote/approval regressions, and one production-Hook policy activation test; 12 inherited executions repeat existing cases, yielding 191 executed tests. The historical-deployment fixture always pins block 26,197,122 because that Hook did not exist at the older global baseline. See [Release Readiness](RELEASE_READINESS.md) for scope and CI limitations. Passing fork tests is not an independent security audit or a mainnet deployment.
 
 Production runtime is close to the size limit. Rebuild and recheck it after any source, dependency or compiler change; do not remove balance or permission checks merely to make room.
 
@@ -75,7 +75,7 @@ The source base is public main commit `730c6fdade1fb2bd0a1b9e0e38a1c353de3ad8a8`
 1. Review this candidate and freeze its source, dependencies, compiler and constructor configuration. Confirm final owner, guardian, initializer and residual recipient. A rehearsal that copies existing roles does not approve those roles for a new release.
 2. Mine a new CREATE2 salt with `script/MineHookAddress.s.sol`, using the final native ETH mode and constructor values. Rehearse `DeployMainnetNativeEth` without `--broadcast`; check the predicted address is empty and deployment assertions pass. A changed init code or role changes the address.
 3. Deploy only the reviewed candidate. Verify source and constructor arguments on Etherscan, then run `CheckDeployment` with the new salt/address. Both deployment scripts now check fee classification and multiplier.
-4. Initialize **native ETH/WBTC** with `script/InitializeEthWbtcPool.s.sol:InitializeEthWbtcPool`, using the existing canonical fwETH/fwWBTC Pair confirmed below. Keep price and route checks. For Shell LP, use the existing `ShellLiquidity` script with native ETH as `LP_TOKEN_A` and WBTC as `LP_TOKEN_B`, retaining explicit amount caps. Use `script/SmokeSwapEthWbtc.s.sol:SmokeSwapEthWbtc` for the bounded official-router canary. Additional pools remain a separate decision. Confirm quotes and actual router execution on the new address, recording amount limits, fee configuration and recipient. The older ETH/USDC deployment and scripts are not changed.
+4. Initialize **native ETH/WBTC** with `script/InitializeEthWbtcPool.s.sol:InitializeEthWbtcPool`, using the existing canonical fwETH/fwWBTC Pair confirmed below. Keep price and route checks. Run `script/UpdateEthWbtcProtocolFee.s.sol:UpdateEthWbtcProtocolFee` to preview the current controller, TokenJar, policy fee and update calldata; execute its permissionless `triggerFeeUpdate` before the canary. Read slot0 back and require it to equal the current nonzero official policy. Initialization alone leaves the fee at zero. Stop and reconcile any intentional zero policy with Uniswap; never invent a rate. For Shell LP, use the existing `ShellLiquidity` script with native ETH as `LP_TOKEN_A` and WBTC as `LP_TOKEN_B`, retaining explicit amount caps. Use `script/SmokeSwapEthWbtc.s.sol:SmokeSwapEthWbtc` for the bounded official-router canary. Additional pools remain a separate decision. Confirm quotes and actual router execution on the new address, recording amount limits, fee configuration and recipient. The older ETH/USDC deployment and scripts are not changed.
 5. Before directing traffic to the replacement, plan the old Shell position and routing entry separately. Its Position NFT remains withdrawable through the normal PositionManager; a new Hook cannot inherit it. Do not count the same FewV2 reserves twice across old/new Shells. Pausing an old route does not withdraw its LP.
 6. Resubmit the **new deployed, verified address**, final source revision and fee proof under the existing reference. Ask Uniswap to confirm the Aggregator classification, multiplier and TokenJar settlement satisfy their current policy. Include the already approved FewV4ShellHook as context, not as proof of approval for FewV2.
 7. Approval, routing discovery, executable API quotes and a bounded live swap are separate acceptance checks. Stop activation if source verification, role readback, fee collection, quote parity, LP withdrawal or router amount limits fail.
@@ -105,15 +105,21 @@ After deployment and source verification, set `HOOK_ADDRESS` to the new address 
 forge script script/InitializeEthWbtcPool.s.sol:InitializeEthWbtcPool --rpc-url "$ETH_RPC_URL"
 ```
 
-After initialization and the separate Shell LP setup, preview the small official-router canary:
+After initialization, preview the official fee update:
+
+```sh
+forge script script/UpdateEthWbtcProtocolFee.s.sol:UpdateEthWbtcProtocolFee --rpc-url "$ETH_RPC_URL"
+```
+
+The script prints the current controller as target and its permissionless update calldata. To execute in a rehearsal, set `BROADCAST_PROTOCOL_FEE_UPDATE=true` while still omitting Foundry `--broadcast`. Only an explicitly authorized mainnet execution adds `--broadcast` and a signer. Once the fee is synchronized and the separate Shell LP setup is complete, preview the small official-router canary:
 
 ```sh
 forge script script/SmokeSwapEthWbtc.s.sol:SmokeSwapEthWbtc --rpc-url "$ETH_RPC_URL"
 ```
 
-A three-transaction fork rehearsal deployed the exact candidate, initialized this PoolKey and executed the new canary script successfully. At the snapshot, 0.0001 ETH quoted 291 raw WBTC (0.00000291 WBTC), with minimum output 289 raw WBTC. Estimated total gas including Forge margin was 8,576,458. This rehearsal used existing singleton PoolManager cash and did not mint a Shell LP; the separate LP deposit/withdrawal tests cover that operation. Nothing was broadcast.
+An earlier three-transaction fork rehearsal, before explicit fee activation was added, deployed the exact candidate, initialized this PoolKey and executed the canary successfully. This historical run is not the final fee-payment proof; use the four-step rehearsal in [Release Readiness](RELEASE_READINESS.md). At the snapshot, 0.0001 ETH quoted 291 raw WBTC (0.00000291 WBTC), with minimum output 289 raw WBTC. Estimated total gas including Forge margin was 8,576,458. This rehearsal used existing singleton PoolManager cash and did not mint a Shell LP; the separate LP deposit/withdrawal tests cover that operation. Nothing was broadcast.
 
-Both scripts default to preview mode. The canary defaults to 0.0001 ETH input and quotes WBTC in raw units (8 decimals); `SMOKE_MIN_WBTC_OUT` sets the minimum output. Use the single-pool initialization script for this release, rather than the batch script that initializes all recommended pools. The earlier ETH/USDC pool and release record remain historical facts.
+Initialization, fee update and canary scripts default to preview mode. The canary now rejects unsynchronized or zero policy fees before quoting or sending a swap. The canary defaults to 0.0001 ETH input and quotes WBTC in raw units (8 decimals); `SMOKE_MIN_WBTC_OUT` sets the minimum output. Use the single-pool initialization script for this release, rather than the batch script that initializes all recommended pools. The earlier ETH/USDC pool and release record remain historical facts.
 
 ## Rehearsal snapshot
 
@@ -152,6 +158,8 @@ The replacement submission's initial PoolKey is native ETH/WBTC, fee 3000, tickS
 | 2026-10-15 | Original FewV2 custom accounting cancels the native swap; nonzero Shell fees were not collected in controlled fork tests. Uniswap's routing criteria prohibit bypassing AMM protocol fees. | Add a narrow fee settlement layer; retain canonical Pair execution and Shell LP design. Do not claim this was the confirmed rejection reason. | Uniswap provides the actual rejection reason or a different fee-policy requirement. |
 | 2026-10-15 | Public Aggregator reference uses classification `1 << 11`, multiplier 25 and unspecified-currency fee collection. | Use the same classification and fee math; resolve the current TokenJar on every nonzero payment and fail closed if unavailable. | Upstream fee policy, adapter ABI or governance classification changes. |
 | 2026-10-15 | Both fixed-block suites pass; runtime is within EIP-170 with limited headroom. | Candidate is ready for code review and deployment rehearsal. Mainnet and external submission remain distinct steps. | Any source/configuration change or failed rehearsal/acceptance check. |
+| 2026-10-15 | Fresh pools start with protocol fee zero; real policy recognizes family 11 and resolves raw 40 each way at the review snapshot. | Add an explicit permissionless fee-update script and a canary gate requiring current policy synchronization. | Controller, policy, classification or token pair changes. |
+| 2026-10-15 | Historical native-output and USDT smoke failures were reproduced and isolated to test-router refunds and optional-return approval decoding. | Add exact official-router balance regressions; preserve Hook execution code. | A same-state official-router execution diverges from its quote. |
 | 2026-10-15 | Michael selected ETH/WBTC if a canonical FewToken Pair exists. Mainnet factory, wrapper underlyings, Pair tokens, nonzero reserves and underlying balances were verified at block 26,197,122. | Replace ETH/USDC as the new release's first initialization and canary target with native ETH/WBTC. Keep the original deployment record unchanged. | Pair, backing or initialization/quote preflight fails at execution time. |
 
 ## Appendix: calculation and sources
@@ -166,8 +174,8 @@ The implementation bounds the pre-fee amount to positive `int128` before multipl
 Official references checked on October 15, 2026:
 
 - [Routing criteria](https://support.uniswap.org/hc/en-us/articles/48291859140621-Routing-for-hooked-pools)
-- [ProtocolFees calculation and collection](https://github.com/Uniswap/v4-hooks-public/blob/5b73674d8db8ff9ef4f4a09cfee5f12302d68248/src/base/ProtocolFees.sol)
-- [BaseAggregatorHook classification and multiplier](https://github.com/Uniswap/v4-hooks-public/blob/5b73674d8db8ff9ef4f4a09cfee5f12302d68248/src/base/BaseAggregatorHook.sol)
+- [ProtocolFees calculation and collection](https://github.com/Uniswap/v4-hooks-public/blob/5b73674d8db8ff9ef4f4a09cfee5f12302d68248/src/aggregator-hooks/ProtocolFees.sol)
+- [BaseAggregatorHook classification and multiplier](https://github.com/Uniswap/v4-hooks-public/blob/5b73674d8db8ff9ef4f4a09cfee5f12302d68248/src/aggregator-hooks/BaseAggregatorHook.sol)
 - [Public UniswapV2Aggregator example](https://github.com/Uniswap/v4-hooks-public/blob/5b73674d8db8ff9ef4f4a09cfee5f12302d68248/src/aggregator-hooks/implementations/UniswapV2/UniswapV2Aggregator.sol)
 
 The upstream reference revision is `5b73674d8db8ff9ef4f4a09cfee5f12302d68248`. Recheck current policy before a later deployment.

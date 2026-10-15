@@ -23,7 +23,7 @@ The v4 pool is the route and settlement entry point. The FewV2 pair supplies the
 
 Current `src/` is an **undeployed protocol-fee candidate**. The existing mainnet address below runs the earlier implementation and does not gain this behavior. See [Protocol Fee Upgrade](docs/PROTOCOL_FEE_UPGRADE.md).
 
-The replacement's first initialization and canary target is **native ETH/WBTC**, backed by the canonical FewV2 fwETH/fwWBTC Pair. Use `InitializeEthWbtcPool` and `SmokeSwapEthWbtc`; the older ETH/USDC scripts remain available for the historical deployment.
+The replacement's first initialization and canary target is **native ETH/WBTC**, backed by the canonical FewV2 fwETH/fwWBTC Pair. Use `InitializeEthWbtcPool`, `UpdateEthWbtcProtocolFee`, then `SmokeSwapEthWbtc`; the canary requires the PoolManager fee to match the nonzero official policy. See [Release Readiness](docs/RELEASE_READINESS.md). The older ETH/USDC scripts remain available for the historical deployment.
 
 - Deployed on Ethereum mainnet on October 12, 2026, in native ETH mode, at [`0x59255CbC688e402eF980B84668bA1d1c708b6088`](https://etherscan.io/address/0x59255cbc688e402ef980b84668ba1d1c708b6088#code). Only the ETH/USDC Shell Pool is open, with a small Shell position. See [Mainnet Release](docs/RELEASE_MAINNET.md).
 - Not audited. An earlier, materially different implementation was reviewed by ABDK; that review does not cover this code.

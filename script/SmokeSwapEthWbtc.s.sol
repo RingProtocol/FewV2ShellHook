@@ -14,6 +14,7 @@ import {IV4Quoter} from "v4-periphery/src/interfaces/IV4Quoter.sol";
 import {IV4Router} from "v4-periphery/src/interfaces/IV4Router.sol";
 
 import {FewV2ShellHook} from "../src/FewV2ShellHook.sol";
+import {UpdateEthWbtcProtocolFee} from "./UpdateEthWbtcProtocolFee.s.sol";
 
 interface ISmokeUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -67,6 +68,13 @@ contract SmokeSwapEthWbtc is Script {
         PoolId poolId = key.toId();
         (uint160 sqrtPriceX96,,,) = StateLibrary.getSlot0(IPoolManager(poolManager), poolId);
         require(sqrtPriceX96 != 0, "ETH/WBTC Shell Pool not initialized");
+
+        UpdateEthWbtcProtocolFee feeCheck = new UpdateEthWbtcProtocolFee();
+        UpdateEthWbtcProtocolFee.FeeUpdatePlan memory feePlan = feeCheck.preview(hook, poolManager, wbtc);
+        feeCheck.requireCurrentPolicy(feePlan);
+        console2.log("Protocol-fee controller:", feePlan.controller);
+        console2.log("Protocol-fee recipient:", feePlan.recipient);
+        console2.log("Active packed protocol fee:", uint256(feePlan.currentFee));
 
         IV4Quoter.QuoteExactSingleParams memory quoteParams = IV4Quoter.QuoteExactSingleParams({
             poolKey: key, zeroForOne: true, exactAmount: amountIn128, hookData: bytes("")
