@@ -93,9 +93,9 @@ As a result, wrapper backing (underlying held by the wrapper divided by FewToken
 
 ### Governance keys
 
-- After the immutable add-timelock (48 hours by default), the owner can admit any underlying. Use a multisig owner and monitor `UnderlyingAddProposed`.
+- The underlying allowlist is fixed at deployment. No role can add an underlying or remove one, so there is no `UnderlyingAddProposed` to monitor; the set of admitted tokens is decided once, before the Hook is deployed.
 - `pause()` is global for the deployment; there is no per-pool pause.
-- `removeUnderlying` blocks future registrations only. It does not stop a pool that is already registered; use `pause()` for a live incident.
+- Because the allowlist cannot be narrowed, `pause()` is the only in-place response to a bad underlying. It stops every pool of that deployment, so plan for a new Hook deployment if the token set has to change.
 - The guardian should be a different key from the owner, otherwise the disable-only emergency role adds no independent protection.
 - `owner`, `guardian`, `poolInitializer` and `residualRecipient` are storage, so they can be rotated after deployment without redeploying (`transferOwnership` plus `acceptOwnership`, `setGuardian`, `setPoolInitializer` and `setResidualRecipient`).
 - A compromised owner can make itself the pool initializer and the residual recipient. The first lets it register allowlisted canonical pairs at a live price; the second redirects only the Hook's residual balance. Monitor `PoolInitializerUpdated` and `ResidualRecipientUpdated`.
@@ -103,6 +103,6 @@ As a result, wrapper backing (underlying held by the wrapper divided by FewToken
 
 ## Operational response
 
-`FewV2ShellHook` has an emergency swap pause but no upgrade path, route setter or withdrawal path. If a route is unsafe: pause swaps through the guardian or owner, remove the affected underlying from the allowlist to block new registrations, stop exposing the Hook and PoolIds through routing and discovery, withdraw Shell LP through PositionManager (pausing never blocks LP exit), and migrate to a newly reviewed Hook if needed. Only the owner can unpause.
+`FewV2ShellHook` has an emergency swap pause but no upgrade path, route setter or withdrawal path. If a route is unsafe: pause swaps through the guardian or owner, stop exposing the Hook and PoolIds through routing and discovery, withdraw Shell LP through PositionManager (pausing never blocks LP exit), and migrate to a newly reviewed Hook if needed. The underlying allowlist cannot be changed, so a new deployment with a different token set is the only way to stop admitting a token. Only the owner can unpause.
 
 The base `FewV2ShellHookBase` has no pause; the same response applies without the first two steps.

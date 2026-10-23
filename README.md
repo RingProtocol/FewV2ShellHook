@@ -16,7 +16,7 @@ The v4 pool is the route and settlement entry point. The FewV2 pair supplies the
 
 | Contract | Role |
 |---|---|
-| [`FewV2ShellHook`](src/FewV2ShellHook.sol) | **Deployment target.** `FewV2ShellHookBase` plus a time-locked underlying allowlist, a swap pause, a two-step owner that cannot be renounced and a disable-only guardian. The owner can replace the pool initializer and residual recipient. The swap and settlement path is inherited unchanged |
+| [`FewV2ShellHook`](src/FewV2ShellHook.sol) | **Deployment target.** `FewV2ShellHookBase` plus an underlying allowlist fixed at deployment, a swap pause, a two-step owner that cannot be renounced and a disable-only guardian. The owner can replace the pool initializer and residual recipient. The swap and settlement path is inherited unchanged |
 | [`FewV2ShellHookBase`](src/FewV2ShellHookBase.sol) | Execution, quoting and settlement. No owner and no admin functions. Not deployed on its own |
 
 ## Status
@@ -59,13 +59,11 @@ The core Shell accounting is the same, but this is not a one-line venue replacem
 | Power | Holder | Notes |
 |---|---|---|
 | Register a Shell Pool | `poolInitializer` | Only for allowlisted underlyings. The price must be within one tick of FewV2, and each FewV2 pair can back only one pool |
-| Add an underlying | Owner | `proposeUnderlying`, then `commitUnderlying` after the immutable delay (48 hours by default) |
-| Remove an underlying | Guardian or owner | Immediate. Blocks new pools; existing pools keep swapping |
 | Pause swaps | Guardian or owner | Blocks swaps in every pool. Never blocks LP withdrawals |
 | Unpause, replace guardian, transfer ownership | Owner | Ownership transfer is two-step. Ownership cannot be renounced, so a pause can always be lifted |
 | Replace the pool initializer or residual recipient | Owner | Immediate. A new initializer can only register new pools; registered routes never change |
 
-There is no upgrade path, route setter or owner withdrawal. The genesis allowlist is WETH, USDC, USDT, DAI, WBTC and USDR, which covers the eight recommended pools. The allowlist controls admission; it does not make a token safe. See [Known Issues](KNOWN_ISSUES.md).
+There is no upgrade path, route setter or owner withdrawal. The allowlist is WETH, USDC, USDT, DAI, WBTC and USDR, which covers the eight recommended pools. It is fixed at deployment: no role can add an underlying or remove one, and a different token set needs a new Hook deployment. The allowlist controls admission; it does not make a token safe. See [Known Issues](KNOWN_ISSUES.md).
 
 ## Routing interface
 

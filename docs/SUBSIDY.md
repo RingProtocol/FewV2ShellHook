@@ -1,6 +1,7 @@
 # Subsidy: a shared protocol-fee refund
 
-**Branch `feat/subsidy`. Not deployed. The deployed Hook addresses are unchanged.**
+**Branch `feat/subsidy`. Not deployed. The Hooks live on mainnet today still carry the
+time-locked allowlist; this branch replaces it with one that is fixed at deployment.**
 
 A Shell swap costs 30 bps of FewV2 LP fee plus the Uniswap protocol fee that the Hook collects
 for its pool. A plain v4 pool at the same 3000 fee tier costs 30 bps, and carries no protocol fee
@@ -91,6 +92,68 @@ The Shell LP is not involved. PoolManager inventory is unchanged by the round tr
 vault's contribution is exactly what the router takes out again. The subsidy is a Ring treasury
 expense.
 
+## Budget currencies
+
+The budget is denominated per currency, and one currency holds one balance that every pool of the
+Hook shares. Which currencies need a balance follows from two facts: the subsidy is paid in the
+currency the Uniswap protocol fee was charged in, and the protocol fee is always charged in one of
+the pool's two endpoints. A pool quoted in both directions therefore needs a balance in both of its
+endpoints, and the union over all pools is the set of balances to hold.
+
+The eight recommended Shell Pools cover six currencies:
+
+| Pool | Endpoints | Budget currencies |
+|---|---|---|
+| ETH-or-WETH/USDC | ETH-or-WETH, USDC | ETH-or-WETH, USDC |
+| ETH-or-WETH/USDT | ETH-or-WETH, USDT | ETH-or-WETH, USDT |
+| ETH-or-WETH/DAI | ETH-or-WETH, DAI | ETH-or-WETH, DAI |
+| ETH-or-WETH/WBTC | ETH-or-WETH, WBTC | ETH-or-WETH, WBTC |
+| WBTC/USDC | WBTC, USDC | WBTC, USDC |
+| WBTC/USDT | WBTC, USDT | WBTC, USDT |
+| WBTC/DAI | WBTC, DAI | WBTC, DAI |
+| ETH-or-WETH/USDR | ETH-or-WETH, USDR | ETH-or-WETH, USDR |
+
+One Hook deployment therefore holds six balances: ETH-or-WETH, USDC, USDT, DAI, WBTC and USDR. The
+two currencies of a pool are the same two shared balances, not two copies of each: the ETH/USDC pool
+and the WBTC/USDC pool draw on the same USDC balance, so a busy pool can starve the other one.
+
+The native ETH balance is keyed by `address(0)`. A native-ETH deployment and a WETH deployment are two
+Hook deployments with two vaults and therefore two independent sets of balances: funding the native
+one does not fund the WETH one.
+
+A currency only needs a balance while some pool actually charges a protocol fee in it. Uniswap's fee
+controller sets that rate per pool and per direction, and a pool with no protocol fee makes the
+subsidy structurally zero. The report below shows the rate of every recommended pool, so a balance
+held for a pool that charges nothing is visible before it wastes money.
+
+## Checking the budget
+
+`script/ReportSubsidyBudget.s.sol:ReportSubsidyBudget` is a read-only script that prints the whole
+budget picture in one run: the vault's arming and pause state, the balance of every currency, and
+for every recommended pool its protocol fee rate per direction, the currencies it charges and the
+balance that backs each of them.
+
+```sh
+HOOK_ADDRESS=0x... SUBSIDY_VAULT_ADDRESS=0x... \
+  forge script script/ReportSubsidyBudget.s.sol:ReportSubsidyBudget --rpc-url $ETH_RPC_URL
+```
+
+It sends no transaction and needs no owner key. Two warnings matter:
+
+- a pool whose protocol fee is zero in both directions never draws on any balance, so money held for
+  it is wasted;
+- a currency with a zero balance is not subsidized at all: the vault fails open, the trader pays the
+  protocol fee, and the route keeps working.
+
+Because the underlying allowlist is fixed at deployment, the currency set is fixed with it. A new
+origin token needs a new Hook deployment, so the report must be repeated for the new vault, and a
+balance left behind on the old vault is Ring money that no longer subsidizes anything.
+
+The Hooks live on mainnet today still carry the time-locked allowlist: the owner can add a token
+once 48 hours have elapsed, and the guardian can remove one. That governance does not exist in
+this branch. A report run against a live address therefore describes the live contract and not
+this branch, and the address it reports is not the address this branch will deploy.
+
 ## Failure modes
 
 The vault never reverts on an empty budget. It pays what it can and reports the real amount, and
@@ -140,6 +203,8 @@ init code. The order is:
 6. Fund the budget per currency: `fund(currency, amount)` for ERC20 and `fundNative()` for ETH.
    Budgets are per currency, so a route that settles in USDC needs a USDC budget.
 7. Check a quote against the same pool with the protocol fee switched off. The two must match.
+8. Run `script/ReportSubsidyBudget.s.sol:ReportSubsidyBudget` and confirm that every currency that
+   the recommended pools charge has a non-zero balance.
 
 Steps 1 to 3 are the only ones that change the Hook address. A vault that is deployed but never
 armed behaves exactly like the previous release.
@@ -152,17 +217,26 @@ directions therefore needs a budget in both of its currencies.
 
 | Check | Result |
 |---|---|
-| Full Foundry suite against a mainnet fork | 232 tests: 230 passed, 2 failed |
-| Subsidy suite (`test/fork/SubsidyFork.t.sol`) | 34 passed, 0 failed, 11 of them subsidy-specific |
+| Full Foundry suite against a mainnet fork | Last full run, on the parent commit: 232 tests, 230 passed, 2 failed. **Not re-run on this branch**: the build environment has no outbound network, so no fork suite below has been executed against the code in this branch. |
+| Subsidy suite (`test/fork/SubsidyFork.t.sol`) | 50 test functions: 28 in the file, 22 inherited from the protocol-fee suite. The 16 added by this branch have not been executed. |
+| Multi-pool subsidy suite (`test/fork/SubsidyMultiPoolFork.t.sol`) | 54 test functions: 4 in the file, the rest inherited. New in this branch and not executed. |
+| Governance suite (`test/fork/FewV2ShellHookFork.t.sol`) | 16 test functions; last run 16 passed, 0 failed |
 | Fee arithmetic fuzz | 10,000 cases against an independent full-precision ceiling reference |
-| `FewV2ShellHook` runtime | 24,475 bytes; 101 bytes below the EIP-170 limit |
+| `FewV2ShellHook` runtime | 23,724 bytes; 852 bytes below the EIP-170 limit |
 | `SubsidyVault` runtime | 3,044 bytes |
+| Hermetic suite (`forge test --no-match-path "test/fork/*"`) | 20 passed, 0 failed |
 | `forge fmt --check` on every tracked source, script and test file | Clean |
 
 The two failures are in `test/fork/DeployedHookSmokeFork.t.sol`, an untracked local file that
 exercises the previously deployed mainnet Hook address against live prices. They predate this
 branch and are price drift on the old deployment, not a regression: the address under test was
 deployed before the subsidy existed and the file is not part of the branch.
+
+This branch changes the Hook bytecode. The underlying allowlist lost its time-locked mutation
+paths, so the deployment target is smaller and its constructor takes one argument less, which
+changes the mined address. Every fork suite therefore has to be re-run against the new code before
+this branch merges, and the counts above must not be read as a green run of it. The hermetic suite,
+the bytecode sizes and the formatter are the checks that were actually executed here.
 
 The subsidy tests run against the real PoolManager, the real controller and the real TokenJar on a
 mainnet fork. They arm the vault with real funds, then check the trader's balance, the TokenJar's

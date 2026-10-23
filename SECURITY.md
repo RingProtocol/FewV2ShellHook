@@ -23,11 +23,13 @@ Upstream Uniswap, OpenZeppelin and Ring Few Protocol contracts are separate proj
 
 Deployment target `FewV2ShellHook`:
 
-- `owner` (`Ownable2Step`) can propose and, after the immutable add-timelock, commit a new allowlisted underlying; remove an underlying immediately; `unpause`; replace the guardian, the pool initializer and the residual recipient; transfer ownership in two steps. Ownership cannot be renounced.
-- `guardian` is disable-only: it can `pause()` swaps and remove or cancel an underlying. It can never enable a token or unpause.
+- `owner` (`Ownable2Step`) can `unpause`; replace the guardian, the pool initializer and the residual recipient; transfer ownership in two steps. Ownership cannot be renounced.
+- `guardian` is disable-only: it can `pause()` swaps. It can never enable a token or unpause.
 - `poolInitializer` may register new pools whose underlyings are allowlisted. It cannot change an existing route or move funds.
 - No role can upgrade the contract, change a registered route, move PoolManager assets or remove another account's liquidity. `pause()` only blocks swaps; it never blocks LP withdrawal.
-- Factories, WETH, V4Quoter, the native ETH mode and the add-timelock delay are immutable.
+- Factories, WETH, V4Quoter, the native ETH mode and the underlying allowlist are immutable.
+
+The allowlist is the complete token set of the deployment, written at construction. No role can add an entry or remove one, so an unsafe underlying cannot be admitted to a live deployment and a compromised owner cannot widen it. The cost is that a new origin token needs a new Hook deployment, with a new address, new PoolIds and a new routing submission.
 
 The inherited base `FewV2ShellHookBase` has no owner, pause, allowlist or route setter; `poolInitializer` is its only role, and the base never changes it or `residualRecipient`.
 

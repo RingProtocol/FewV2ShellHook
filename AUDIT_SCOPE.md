@@ -16,7 +16,7 @@ No previous audit covers this target.
 
 | File | Role | Priority |
 |---|---|---|
-| `src/FewV2ShellHook.sol` | Deployment target: underlying allowlist enforced in `beforeInitialize`, immutable add-timelock, swap pause, non-renounceable `Ownable2Step` owner, disable-only guardian and owner-replaceable pool initializer and residual recipient over the inherited swap path | Critical |
+| `src/FewV2ShellHook.sol` | Deployment target: underlying allowlist enforced in `beforeInitialize` and fixed at deployment, swap pause, non-renounceable `Ownable2Step` owner, disable-only guardian and owner-replaceable pool initializer and residual recipient over the inherited swap path | Critical |
 | `src/FewV2ShellHookBase.sol` | v4 settlement, wrap, FewV2 execution, unwrap, quote and routing-depth interface | Critical |
 | `src/lib/FewV2Math.sol` | FewV2 exact-input and exact-output math | High |
 | `src/lib/FewV2Price.sol` | Reserve ordering and overflow-safe v4 initialization price | High |
@@ -31,7 +31,7 @@ Pinned third-party dependencies, scripts, tests and documents are outside produc
 3. The Hook takes the full v4 swap delta, wraps input directly to the FewV2 pair, swaps, unwraps ERC20 output directly to PoolManager where possible and settles atomically. It adds no Ring fee. Configured Uniswap fees are collected in the unspecified origin currency, with quote and settlement using the same path.
 4. Shell `slot0`, liquidity and fee growth are not execution state.
 5. `quote()` simulates the full v4 path. `pseudoTotalValueLocked()` reports FewV2 depth capped by wrapper backing and current PoolManager origin-token cash.
-6. In the base `FewV2ShellHookBase`, `poolInitializer` is the only role and can only register new pools. `FewV2ShellHook` adds an owner (allowlist adds after the timelock, immediate removals, unpause, and replacing the guardian, pool initializer and residual recipient) and a disable-only guardian (pause, remove/cancel underlyings); neither can change a route, move PoolManager balances or withdraw LP.
+6. In the base `FewV2ShellHookBase`, `poolInitializer` is the only role and can only register new pools. `FewV2ShellHook` adds an owner (unpause, and replacing the guardian, pool initializer and residual recipient) and a disable-only guardian (pause); neither can change a route, move PoolManager balances or withdraw LP.
 7. PoolKey uses `fee=3000` and `tickSpacing=1`. The fee field mirrors the external FewV2 venue; the v4 curve is bypassed. Production indexing must retain this exact non-canonical fee/tick combination.
 
 ## Main changes from the historical build
@@ -63,7 +63,7 @@ Pinned third-party dependencies, scripts, tests and documents are outside produc
 8. Can the pool initializer, or an owner who replaces it, affect user principal or Shell LP withdrawal rights?
 9. Are forced ETH, allowance reset, sweep and failed-settlement rollback handled completely?
 10. Can any path register a pool whose underlying is not allowlisted, including native ETH mapped to WETH and either currency ordering?
-11. Can the owner shorten or bypass the add-timelock, or can the guardian enable a token or unpause through any sequence?
+11. Can the guardian enable a token or unpause through any sequence, and is the deployment-fixed allowlist genuinely unreachable from every role and every call path?
 12. Does `whenNotPaused` on `_beforeSwap` cover every swap entry point while leaving LP add/remove unaffected?
 13. Are the inherited `Ownable2Step` and `Pausable` integrations correct with the hook's constructor and permission bits, and does any path to a zero owner remain after the `renounceOwnership()` override?
 14. Can replacing `poolInitializer` or `residualRecipient` change an existing route, redirect anything beyond the Hook's own residual balance, or leave either role at the zero address?

@@ -24,6 +24,10 @@ All 153 tests pass at Ethereum mainnet block `25,934,149`, the block pinned in C
 | `test/fork/DuplicateRouteFork.t.sol` | 1 | Cross-deployment duplicate depth and stale-quote counterexample |
 | **Total** | **153** | |
 
+The table above is the October 12 release snapshot. The branch under review replaces the time-locked
+underlying allowlist with one that is fixed at deployment, so the governance suite is smaller now and
+the current test counts are recorded in [Subsidy](SUBSIDY.md).
+
 ## Disabled renouncement
 
 `FewV2ShellHook` overrides the inherited `renounceOwnership()` to revert with `RenounceDisabled`, as Uniswap's governed v4 component [`PermissionsAdapter`](https://github.com/Uniswap/v4-periphery/blob/main/src/hooks/permissionedPools/PermissionsAdapter.sol) does. `Ownable2Step` makes transfers two-step but leaves renouncement one-step, and without an owner a guardian pause could never be lifted.
@@ -36,7 +40,7 @@ A replaced initializer can only register new pools for allowlisted underlyings; 
 
 ## Deployment rehearsal
 
-Before the mainnet deployment, the full sequence ran with the scripts in `script/` on Anvil forks of mainnet without private keys, most recently at block `26,176,825` with the release role addresses. Together the runs covered salt mining, deployment through the canonical CREATE2 deployer, `CheckDeployment` with the CREATE2 proof, initialization of all eight recommended pools at the previewed FewV2 price, an ETH/USDC Shell position minted through PositionManager with exact-amount Permit2 approvals, and a Universal Router canary that returned exactly the V4Quoter quote. Governance ran end to end: a rejected early commit and a commit after 48 hours, guardian removal and pause, a rejected guardian unpause, owner unpause, rejected renouncement, two-step ownership transfer, and replacement of the guardian, pool initializer and residual recipient. `CheckDeployment` failed as intended on a wrong salt and on stale role expectations. With swaps paused, the Shell position was fully withdrawn, losing at most one raw unit of rounding per side.
+Before the mainnet deployment, the full sequence ran with the scripts in `script/` on Anvil forks of mainnet without private keys, most recently at block `26,176,825` with the release role addresses. Together the runs covered salt mining, deployment through the canonical CREATE2 deployer, `CheckDeployment` with the CREATE2 proof, initialization of all eight recommended pools at the previewed FewV2 price, an ETH/USDC Shell position minted through PositionManager with exact-amount Permit2 approvals, and a Universal Router canary that returned exactly the V4Quoter quote. Governance ran end to end: a rejected early commit and a commit after 48 hours, guardian removal and pause, a rejected guardian unpause, owner unpause, rejected renouncement, two-step ownership transfer, and replacement of the guardian, pool initializer and residual recipient. That rehearsal predates the deployment-fixed allowlist of this branch, so the allowlist governance it exercised no longer exists. `CheckDeployment` failed as intended on a wrong salt and on stale role expectations. With swaps paused, the Shell position was fully withdrawn, losing at most one raw unit of rounding per side.
 
 The rehearsal also exposed one operator-script issue, which is now fixed. On mainnet, EOAs with an EIP-7702 delegation have a 23-byte code designator, and the pool-initialization scripts had treated them as contract wallets. The scripts now accept a plain EOA or a delegated EOA for direct broadcast, and still print calldata for real contract wallets.
 
@@ -95,7 +99,9 @@ The duplicate-route test deploys native ETH and WETH Hook modes that expose the 
 
 ## Governance and malicious-underlying checks
 
-`FewV2ShellHook` adds a time-locked underlying allowlist and a swap pause on top of the unchanged base logic.
+`FewV2ShellHook` adds an underlying allowlist that is fixed at deployment and a swap pause on top of
+the unchanged base logic. The October 12 records in this document describe the earlier time-locked
+allowlist, so the governance behaviour described below is the current one and not the recorded one.
 
 Malicious-underlying behavior (`MaliciousUnderlyingFork`, 9 tests). Each origin token first obtains a canonical FewFactory wrapper and a real FewV2 pair and is registered as a Shell pool, so canonical-identity checks pass. The suite then shows:
 
@@ -106,20 +112,20 @@ Malicious-underlying behavior (`MaliciousUnderlyingFork`, 9 tests). Each origin 
 - the root cause is that value paired against a bad token is drainable by a direct FewV2 swap even without the Hook, so the Hook's role is admission control and fail-closed settlement, not making an unsafe token safe;
 - an immutable-allowlist prototype blocks the bad underlying at `beforeInitialize` while still admitting canonical ones.
 
-Governance behavior (`FewV2ShellHookFork`, 17 tests):
+Governance behavior (`FewV2ShellHookFork`, 16 tests):
 
 - genesis underlyings register and seed; a non-allowlisted underlying is rejected at `beforeInitialize` with `UnderlyingNotAllowlisted`;
-- `proposeUnderlying` then `commitUnderlying` is blocked before the 48h delay (`AddTimelockNotElapsed`) and allowed after; committing without a proposal reverts;
-- `removeUnderlying` is immediate and blocks new registration, but a pool already registered keeps swapping; removal also cancels a pending proposal;
+- the allowlist is the complete token set of the deployment: `proposeUnderlying`, `commitUnderlying` and `removeUnderlying` are not part of the contract, so no role can widen or narrow it;
+- an allowlisted underlying registers normally, and an entry can never be removed, so a pool that is already registered keeps swapping;
 - `pause()` is callable by guardian or owner and blocks swaps, only the owner can `unpause`, and a stranger cannot pause;
-- the guardian has disable-only powers: it can remove an active underlying and cancel a pending add, but cannot enable a token or unpause;
+- the guardian has disable-only powers: it can pause, but it cannot enable a token or unpause;
 - two-step ownership transfer works and the old owner loses owner-only powers;
 - `renounceOwnership()` reverts with `RenounceDisabled` for every caller, including the owner during a pause, and the owner can still unpause;
 - the owner can replace the pool initializer: the previous initializer is rejected at `beforeInitialize` even though it is still the owner, the new one registers a pool, and existing routes keep swapping;
 - the owner can replace the residual recipient: later ETH and USDC sweeps pay only the new recipient; for both setters, guardian, stranger and zero-address calls revert;
 - defense in depth: even an allowlisted fee-on-transfer token still fails closed at swap time.
 
-This does not prove that any allowlisted token is economically safe, or that the final owner and guardian keys are correctly controlled. The allowlist is admission control only; underlying-token due diligence (transfer semantics, mint authority, upgradeability, backing) is still required before adding any origin token.
+This does not prove that any allowlisted token is economically safe, or that the final owner and guardian keys are correctly controlled. The allowlist is admission control only; underlying-token due diligence (transfer semantics, mint authority, upgradeability, backing) is still required before any origin token is admitted. Because the allowlist can no longer be changed, that diligence has to happen before the deployment instead of before a later governance action.
 
 ## Initialization and price checks
 
@@ -159,7 +165,7 @@ Permanent wrapper approvals were considered and rejected. They would save more s
 The CI Slither run on October 12, 2026 (`crytic/slither-action` v0.4.0, excluding `lib/`, `test/` and `script/`) analyzed 51 contracts with 97 detectors. Its ten reported items were triaged as follows:
 
 - three ignored return values, two FewV2 reserve timestamps and one V4Quoter gas estimate, are intentional;
-- the `block.timestamp` comparison in `commitUnderlying` enforces the 48-hour add delay, so validator timestamp drift of seconds is immaterial;
+- the `block.timestamp` comparison in `commitUnderlying` enforces the 48-hour add delay, so validator timestamp drift of seconds is immaterial; that function no longer exists in the branch under review, because the allowlist is fixed at deployment, so the finding cannot recur;
 - three helpers reported as dead code are reachable: `_executeFewV2ExactOutput` and `_quoteAmountInForHop` are called from `_swapExactOutput`, for which Slither could not generate IR, and `_pay()` is an override reached by the inherited settlement path;
 - the native-token low-level call exists only in permissionless `sweep()`, is protected by `nonReentrant` and can send only to the current residual recipient, which only the owner can change;
 - two unindexed event address parameters come from OpenZeppelin `Pausable`'s `Paused` and `Unpaused` events.
