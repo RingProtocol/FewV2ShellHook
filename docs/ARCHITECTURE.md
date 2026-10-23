@@ -14,6 +14,7 @@ router opens a v4 swap
   -> Hook unwraps ERC20 output directly to PoolManager; native output returns through WETH
   -> Hook settles origin output with PoolManager
   -> Hook pays any configured Uniswap protocol fee to the current TokenJar
+  -> the SubsidyVault refunds that fee from its own budget, if it is armed and funded
   -> router closes the user's balance delta
 ```
 
@@ -61,6 +62,8 @@ This simulation includes the same checks used during execution:
 - v4 settlement.
 
 The Hook adds no Ring fee. The Pair's 30 bps LP fee remains included in FewV2 math. A configured Uniswap protocol fee is read by direction from Shell slot0, scaled by the official Aggregator multiplier of 25, and paid to the current fee controller's TokenJar. Exact-input pays from gross output; exact-output adds the grossed-up fee to input. Full-path V4Quoter simulation includes that fee exactly once.
+
+A separate `SubsidyVault` may refund that protocol fee to the trader out of a shared Ring budget. The refund is settled straight into the PoolManager and booked on the Hook's credit, so the Hook's own balance never moves and the zero-residue assertions still hold. The amount refunded is at most the protocol fee that was just charged, and the Shell LP bears none of the cost. The vault fails open: unarmed, paused or empty means the subsidy is zero and the route keeps working. See [Subsidy](SUBSIDY.md).
 
 `pseudoTotalValueLocked()` returns the live FewV2 reserves in the Shell currencies' order. Each side is capped by both the wrapper's available underlying backing and PoolManager's current origin-token cash. PoolManager is a singleton, so this cash is shared rather than reserved for one PoolId. The value is a conservative discovery hint; `quote()` at the requested amount and block is still the final executability check.
 

@@ -37,8 +37,11 @@ The protocol-fee replacement is **deployed and source-verified on Ethereum mainn
 | originToken Shell LP | Keeps origin-token inventory in Uniswap v4 `PoolManager` for swap-before-payment settlement and gives routing discovery a non-zero v4 position. |
 | Ring Swap v2 FewToken pair | Sets the executable price and depth. Its reserves move and its LPs collect the FewV2 fee. |
 | `FewV2ShellHook` | Wraps directly into the FewV2 pair, swaps, unwraps directly into PoolManager where possible and settles the v4 balance delta atomically. It adds no Ring fee; configured Uniswap protocol fees are paid in origin currency to the controller's TokenJar. |
+| `SubsidyVault` | Holds the shared Ring budget that refunds the Uniswap protocol fee to traders. A separate contract with its own owner. Not part of the deployed addresses above |
 
 Hook swaps bypass the Shell Pool curve. Its `slot0`, active liquidity and fee growth do not move during those swaps. Shell LPs do not earn swap fees from this path, but the position remains owned and withdrawable through the standard v4 PositionManager, including while swaps are paused.
+
+The `feat/subsidy` branch adds the optional `SubsidyVault` subsidy: it refunds the Uniswap protocol fee to the trader out of a shared Ring budget, which brings the Shell quote back on par with a plain v4 pool at the same fee tier. The refund is capped at the protocol fee that was just charged, costs the Shell LP nothing, and fails open to zero when the vault is unarmed, paused or empty. It is not part of the deployed addresses above: it needs its own vault deployment, address mining, Hook deployment and routing review. See [Subsidy](docs/SUBSIDY.md).
 
 ## Same Shell, different execution source
 
