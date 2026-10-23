@@ -5,6 +5,9 @@ import {Vm} from "forge-std/Vm.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
+import {CustomRevert} from "@uniswap/v4-core/src/libraries/CustomRevert.sol";
+import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
@@ -425,7 +428,8 @@ contract SubsidyForkTest is ProtocolFeesForkTest {
 
         _swap(ethUsdc, zeroForOne, specified, 0);
 
-        assertEq(IERC20(USDC).balanceOf(USER) - userUsdcBefore, 1e6, "the trader pays the quoted input");
+        // The trader pays the quoted input in USDC and receives the gross output in ETH.
+        assertEq(userUsdcBefore - IERC20(USDC).balanceOf(USER), 1e6, "the trader pays the quoted input");
         assertEq(USER.balance - userEthBefore, rawQuote, "the trader receives the gross output");
         assertEq(vault.balance(address(0)), ethBudgetBefore - expectedFee, "the ETH budget paid the subsidy");
         assertEq(vault.balance(USDC), usdcBudgetBefore, "the USDC budget is untouched");
@@ -450,7 +454,7 @@ contract SubsidyForkTest is ProtocolFeesForkTest {
 
         _swap(ethUsdc, zeroForOne, specified, 0);
 
-        assertEq(IERC20(USDC).balanceOf(USER) - userUsdcBefore, rawQuote, "the trader pays the zero-fee input");
+        assertEq(userUsdcBefore - IERC20(USDC).balanceOf(USER), rawQuote, "the trader pays the zero-fee input");
         assertEq(USER.balance - userEthBefore, 0.0001 ether, "the trader receives the exact output");
         assertEq(vault.balance(USDC), usdcBudgetBefore - expectedFee, "the USDC budget paid the subsidy");
         assertEq(vault.balance(address(0)), ethBudgetBefore, "the ETH budget is untouched");
@@ -591,15 +595,31 @@ contract SubsidyForkTest is ProtocolFeesForkTest {
         int256 specified = -int256(0.001 ether);
 
         uint160 priceBefore = nativeHook.executionSqrtPriceX96(ethUsdc.toId());
+        uint160 limit = priceBefore - 1;
         uint256 budgetBefore = vault.balance(USDC);
         uint256 userUsdcBefore = IERC20(USDC).balanceOf(USER);
         uint256 userEthBefore = USER.balance;
 
+        // The permissive swap only establishes the price the swap would have reached. The limit
+        // is checked after the trade, so the price is the same either way.
+        uint256 snapshot = vm.snapshotState();
+        _swap(ethUsdc, true, specified, 0.001 ether);
+        uint160 resultingPrice = nativeHook.executionSqrtPriceX96(ethUsdc.toId());
+        assertTrue(vm.revertToStateAndDelete(snapshot), "state snapshot rollback");
+
         // A limit just below the live price is accepted before the swap and broken after it.
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CustomRevert.WrappedError.selector,
+                address(nativeHook),
+                IHooks.beforeSwap.selector,
+                abi.encodeWithSelector(FewV2ShellHookBase.FewV2PriceLimitExceeded.selector, resultingPrice, limit),
+                abi.encodeWithSelector(Hooks.HookCallFailed.selector)
+            )
+        );
         vm.prank(USER);
-        vm.expectPartialRevert(FewV2ShellHookBase.FewV2PriceLimitExceeded.selector);
         swapRouter.swap{value: 0.001 ether}(
-            ethUsdc, SwapParams(true, specified, priceBefore - 1), PoolSwapTest.TestSettings(false, false), ""
+            ethUsdc, SwapParams(true, specified, limit), PoolSwapTest.TestSettings(false, false), ""
         );
 
         assertEq(vault.balance(USDC), budgetBefore, "a failed swap leaves the budget untouched");
