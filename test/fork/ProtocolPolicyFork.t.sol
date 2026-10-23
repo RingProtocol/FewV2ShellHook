@@ -4,6 +4,8 @@ pragma solidity 0.8.26;
 import {EthWbtcShellParityForkTest} from "./EthWbtcShellParityFork.t.sol";
 import {FewV2ShellHook} from "../../src/FewV2ShellHook.sol";
 import {FewV2ShellHookBase} from "../../src/FewV2ShellHookBase.sol";
+import {SubsidyVault} from "../../src/SubsidyVault.sol";
+import {ISubsidyVault} from "../../src/interfaces/ISubsidyVault.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
@@ -38,6 +40,8 @@ contract ProtocolPolicyForkTest is EthWbtcShellParityForkTest {
         allowed[0] = WETH;
         allowed[1] = WBTC;
         allowed[2] = USDT;
+        // The vault is deliberately left unarmed, so this suite pays no subsidy.
+        ISubsidyVault vault = new SubsidyVault(PM, address(this));
         bytes memory args = abi.encode(
             PM,
             FEW_FACTORY,
@@ -47,6 +51,7 @@ contract ProtocolPolicyForkTest is EthWbtcShellParityForkTest {
             true,
             address(this),
             RESIDUAL_RECIPIENT,
+            vault,
             address(this),
             address(this),
             uint256(48 hours),
@@ -64,6 +69,7 @@ contract ProtocolPolicyForkTest is EthWbtcShellParityForkTest {
             true,
             address(this),
             RESIDUAL_RECIPIENT,
+            vault,
             address(this),
             address(this),
             48 hours,

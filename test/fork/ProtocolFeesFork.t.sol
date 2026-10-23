@@ -12,6 +12,7 @@ import {PoolSwapTest} from "@uniswap/v4-core/src/test/PoolSwapTest.sol";
 import {ISwapV2Pair} from "../../src/interfaces/external/IFewV2.sol";
 import {IV4FeeRecipient} from "../../src/interfaces/external/IV4FeeRecipient.sol";
 import {FewV2ShellHookBase} from "../../src/FewV2ShellHookBase.sol";
+import {SubsidyVault} from "../../src/SubsidyVault.sol";
 import {ExecutionMatrixForkTest} from "./ExecutionMatrixFork.t.sol";
 import {BaseHook} from "v4-periphery/src/utils/BaseHook.sol";
 
@@ -42,7 +43,8 @@ contract FeeMathHarness is FewV2ShellHookBase {
             source.v4Quoter(),
             true,
             address(this),
-            address(this)
+            address(this),
+            new SubsidyVault(source.poolManager(), address(this))
         )
     {}
 
@@ -65,7 +67,7 @@ contract ProtocolFeesForkTest is ExecutionMatrixForkTest {
     uint24 internal forward = 40;
     uint24 internal reverse = 12;
 
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
         if (!forked) return;
         originalController = PM.protocolFeeController();

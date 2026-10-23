@@ -26,6 +26,8 @@ import {IWETH9} from "v4-periphery/src/interfaces/external/IWETH9.sol";
 import {IV4Quoter as ICanonicalV4Quoter} from "v4-periphery/src/interfaces/IV4Quoter.sol";
 
 import {FewV2ShellHookBase} from "../../src/FewV2ShellHookBase.sol";
+import {SubsidyVault} from "../../src/SubsidyVault.sol";
+import {ISubsidyVault} from "../../src/interfaces/ISubsidyVault.sol";
 import {IAggregatorHook} from "../../src/interfaces/IAggregatorHook.sol";
 import {IFewFactory} from "../../src/interfaces/external/IFewFactory.sol";
 import {IFewWrappedToken} from "../../src/interfaces/external/IFewWrappedToken.sol";
@@ -135,7 +137,8 @@ contract HookNoAddressCheck is FewV2ShellHookBase {
         ICanonicalV4Quoter _v4Quoter,
         bool _useNativeCurrencyForWeth,
         address _poolInitializer,
-        address _residualRecipient
+        address _residualRecipient,
+        ISubsidyVault _subsidyVault
     )
         FewV2ShellHookBase(
             _pm,
@@ -145,7 +148,8 @@ contract HookNoAddressCheck is FewV2ShellHookBase {
             _v4Quoter,
             _useNativeCurrencyForWeth,
             _poolInitializer,
-            _residualRecipient
+            _residualRecipient,
+            _subsidyVault
         )
     {}
     function validateHookAddress(BaseHook) internal pure override {}
@@ -187,6 +191,9 @@ contract FewV2ShellHookBaseForkTest is Test {
     address constant USER = address(0xBEEF);
     bool forked;
     FewV2ShellHookBase hook;
+    /// @dev Shared by the constructor-revert harness. It is deployed in setUp so that
+    ///      `vm.expectRevert` still targets the Hook deployment and not a vault deployment.
+    ISubsidyVault internal harnessVault;
     PoolSwapTest swapRouter;
     PoolModifyLiquidityTest modifyRouter;
     PoolKey ethUsdcKey;
@@ -206,6 +213,8 @@ contract FewV2ShellHookBaseForkTest is Test {
         uint160 flags =
             uint160(Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG);
         bytes memory creationCode = type(FewV2ShellHookBase).creationCode;
+        // The vault is deliberately left unarmed, so this suite pays no subsidy.
+        harnessVault = new SubsidyVault(IPoolManager(V4_PM), address(this));
         bytes memory ctorArgs = abi.encode(
             IPoolManager(V4_PM),
             IFewFactory(FEW_FACTORY),
@@ -214,7 +223,8 @@ contract FewV2ShellHookBaseForkTest is Test {
             ICanonicalV4Quoter(V4_QUOTER),
             true,
             address(this),
-            RESIDUAL_RECIPIENT
+            RESIDUAL_RECIPIENT,
+            harnessVault
         );
         (address mined, bytes32 salt) = HookMiner.find(address(this), flags, creationCode, ctorArgs);
 
@@ -227,7 +237,8 @@ contract FewV2ShellHookBaseForkTest is Test {
             ICanonicalV4Quoter(V4_QUOTER),
             true,
             address(this),
-            RESIDUAL_RECIPIENT
+            RESIDUAL_RECIPIENT,
+            harnessVault
         );
         require(address(hook) == mined, "Hook address mismatch");
 
@@ -1063,7 +1074,8 @@ contract FewV2ShellHookBaseForkTest is Test {
             ICanonicalV4Quoter(V4_QUOTER),
             true,
             address(this),
-            RESIDUAL_RECIPIENT
+            RESIDUAL_RECIPIENT,
+            new SubsidyVault(IPoolManager(V4_PM), address(this))
         );
 
         vm.expectRevert(SafeCast.SafeCastOverflow.selector);
@@ -1324,7 +1336,8 @@ contract FewV2ShellHookBaseForkTest is Test {
             ICanonicalV4Quoter(v4Quoter_),
             true,
             poolInitializer_,
-            residualRecipient_
+            residualRecipient_,
+            harnessVault
         );
     }
 

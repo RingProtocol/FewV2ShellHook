@@ -102,6 +102,7 @@ contract SubsidyVault is ISubsidyVault, Ownable2Step, ReentrancyGuard {
         nonReentrant
         returns (uint256 subsidyAmount)
     {
+        if (hook == address(0)) return 0;
         if (msg.sender != hook) revert NotHook(msg.sender);
         if (paused) return 0;
 

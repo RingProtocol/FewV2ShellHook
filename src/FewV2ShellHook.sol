@@ -15,6 +15,7 @@ import {IWETH9} from "v4-periphery/src/interfaces/external/IWETH9.sol";
 import {IV4Quoter} from "v4-periphery/src/interfaces/IV4Quoter.sol";
 import {IFewFactory} from "./interfaces/external/IFewFactory.sol";
 import {ISwapV2Factory} from "./interfaces/external/IFewV2.sol";
+import {ISubsidyVault} from "./interfaces/ISubsidyVault.sol";
 import {FewV2ShellHookBase} from "./FewV2ShellHookBase.sol";
 
 /// @title FewV2ShellHook
@@ -84,6 +85,7 @@ contract FewV2ShellHook is FewV2ShellHookBase, Ownable2Step, Pausable {
         bool _useNativeCurrencyForWeth,
         address _poolInitializer,
         address _residualRecipient,
+        ISubsidyVault _subsidyVault,
         address _owner,
         address _guardian,
         uint256 _addTimelockDelay,
@@ -97,7 +99,8 @@ contract FewV2ShellHook is FewV2ShellHookBase, Ownable2Step, Pausable {
             _v4Quoter,
             _useNativeCurrencyForWeth,
             _poolInitializer,
-            _residualRecipient
+            _residualRecipient,
+            _subsidyVault
         )
         Ownable(_owner)
     {

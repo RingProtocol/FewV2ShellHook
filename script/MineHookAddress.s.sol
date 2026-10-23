@@ -61,6 +61,7 @@ contract MineHookAddress is DeployMainnetBase {
         console2.log("Native ETH mode: ", useNativeCurrencyForWeth);
         console2.log("Pool initializer:", c.poolInitializer);
         console2.log("Residual target: ", c.residualRecipient);
+        console2.log("Subsidy vault:  ", c.subsidyVault);
         console2.log("Owner:           ", c.owner);
         console2.log("Guardian:        ", c.guardian);
         console2.log("Add timelock (s):", c.addTimelockDelay);

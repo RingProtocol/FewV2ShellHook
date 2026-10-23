@@ -43,6 +43,7 @@ abstract contract DeployMainnetBase is Script {
         address fewV2Factory;
         address poolInitializer;
         address residualRecipient;
+        address subsidyVault;
         address owner;
         address guardian;
         uint256 addTimelockDelay;
@@ -69,6 +70,7 @@ abstract contract DeployMainnetBase is Script {
         c.fewV2Factory = vm.envOr("FEW_V2_FACTORY", FEW_V2_FACTORY_DEFAULT);
         c.poolInitializer = vm.envAddress("POOL_INITIALIZER_ADDRESS");
         c.residualRecipient = vm.envAddress("RESIDUAL_RECIPIENT_ADDRESS");
+        c.subsidyVault = vm.envAddress("SUBSIDY_VAULT_ADDRESS");
         c.owner = vm.envAddress("HOOK_OWNER_ADDRESS");
         c.guardian = vm.envAddress("GUARDIAN_ADDRESS");
         c.addTimelockDelay = vm.envOr("ADD_TIMELOCK_DELAY", DEFAULT_ADD_TIMELOCK_DELAY);
@@ -85,6 +87,7 @@ abstract contract DeployMainnetBase is Script {
             useNativeCurrencyForWeth,
             c.poolInitializer,
             c.residualRecipient,
+            c.subsidyVault,
             c.owner,
             c.guardian,
             c.addTimelockDelay,

@@ -30,6 +30,8 @@ import {IFewFactory} from "../../src/interfaces/external/IFewFactory.sol";
 import {ISwapV2Pair, ISwapV2Factory} from "../../src/interfaces/external/IFewV2.sol";
 import {IFewWrappedToken} from "../../src/interfaces/external/IFewWrappedToken.sol";
 import {FewV2ShellHookBase} from "../../src/FewV2ShellHookBase.sol";
+import {SubsidyVault} from "../../src/SubsidyVault.sol";
+import {ISubsidyVault} from "../../src/interfaces/ISubsidyVault.sol";
 
 interface INativeLiquidityUniversalRouter {
     function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
@@ -80,6 +82,8 @@ contract NativeLiquidityForkTest is Test {
         if (bytes(rpc).length == 0) return;
         vm.createSelectFork(rpc, vm.envOr("TEST_FORK_BLOCK", BLOCK));
         forked = true;
+        // The vault is deliberately left unarmed, so this suite pays no subsidy.
+        ISubsidyVault vault = new SubsidyVault(PM, address(this));
         bytes memory args = abi.encode(
             PM,
             IFewFactory(0x7D86394139bf1122E82FDF45Bb4e3b038A4464DD),
@@ -88,7 +92,8 @@ contract NativeLiquidityForkTest is Test {
             QUOTER,
             true,
             address(this),
-            RESIDUAL_RECIPIENT
+            RESIDUAL_RECIPIENT,
+            vault
         );
         uint160 flags = Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG;
         (address predicted, bytes32 salt) =
@@ -101,7 +106,8 @@ contract NativeLiquidityForkTest is Test {
             QUOTER,
             true,
             address(this),
-            RESIDUAL_RECIPIENT
+            RESIDUAL_RECIPIENT,
+            vault
         );
         assertEq(address(hook), predicted);
         key = PoolKey(Currency.wrap(address(0)), Currency.wrap(USDC), 3000, 1, IHooks(address(hook)));

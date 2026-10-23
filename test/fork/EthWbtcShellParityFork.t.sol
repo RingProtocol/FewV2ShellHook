@@ -25,6 +25,8 @@ import {IWETH9} from "v4-periphery/src/interfaces/external/IWETH9.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
 
 import {FewV2ShellHookBase} from "../../src/FewV2ShellHookBase.sol";
+import {SubsidyVault} from "../../src/SubsidyVault.sol";
+import {ISubsidyVault} from "../../src/interfaces/ISubsidyVault.sol";
 import {IFewFactory} from "../../src/interfaces/external/IFewFactory.sol";
 import {ISwapV2Pair, ISwapV2Factory} from "../../src/interfaces/external/IFewV2.sol";
 import {IV4FeeRecipient} from "../../src/interfaces/external/IV4FeeRecipient.sol";
@@ -386,13 +388,16 @@ contract EthWbtcShellParityForkTest is Test {
     }
 
     function _deploy() internal returns (FewV2ShellHookBase deployed) {
-        bytes memory args =
-            abi.encode(PM, FEW_FACTORY, FEWV2_FACTORY, IWETH9(WETH), QUOTER, true, address(this), RESIDUAL_RECIPIENT);
+        // The vault is deliberately left unarmed, so this suite pays no subsidy.
+        ISubsidyVault vault = new SubsidyVault(PM, address(this));
+        bytes memory args = abi.encode(
+            PM, FEW_FACTORY, FEWV2_FACTORY, IWETH9(WETH), QUOTER, true, address(this), RESIDUAL_RECIPIENT, vault
+        );
         uint160 flags = Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG;
         (address predicted, bytes32 salt) =
             HookMiner.find(address(this), flags, type(FewV2ShellHookBase).creationCode, args);
         deployed = new FewV2ShellHookBase{salt: salt}(
-            PM, FEW_FACTORY, FEWV2_FACTORY, IWETH9(WETH), QUOTER, true, address(this), RESIDUAL_RECIPIENT
+            PM, FEW_FACTORY, FEWV2_FACTORY, IWETH9(WETH), QUOTER, true, address(this), RESIDUAL_RECIPIENT, vault
         );
         assertEq(address(deployed), predicted, "mined Hook address");
     }

@@ -28,6 +28,7 @@ import {IFewFactory} from "./interfaces/external/IFewFactory.sol";
 import {ISwapV2Pair, ISwapV2Factory} from "./interfaces/external/IFewV2.sol";
 import {IV4FeeRecipient} from "./interfaces/external/IV4FeeRecipient.sol";
 import {IAggregatorHook} from "./interfaces/IAggregatorHook.sol";
+import {ISubsidyVault} from "./interfaces/ISubsidyVault.sol";
 import {FewV2Math} from "./lib/FewV2Math.sol";
 import {FewV2Price} from "./lib/FewV2Price.sol";
 
@@ -112,6 +113,12 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
     /// @notice Chooses the one canonical representation of WETH-backed routes for this deployment.
     /// @dev true permits native ETH pools and rejects WETH aliases; false does the opposite.
     bool public immutable useNativeCurrencyForWeth;
+    /// @notice The shared subsidy budget that refunds the Uniswap protocol fee to traders.
+    /// @dev The vault pays out of its own balance and never reverts when that balance is empty,
+    ///      so an unfunded vault degrades the subsidy to zero instead of blocking the route.
+    ///      The vault cannot pay out more than the protocol fee it is handed, so the subsidy rate
+    ///      is structurally capped at the protocol fee rate.
+    ISubsidyVault internal immutable subsidyVault;
 
     // ============ Storage ============
     /// @notice The only account allowed to register new Shell Pools.
@@ -170,7 +177,8 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
         IV4Quoter _v4Quoter,
         bool _useNativeCurrencyForWeth,
         address _poolInitializer,
-        address _residualRecipient
+        address _residualRecipient,
+        ISubsidyVault _subsidyVault
     ) BaseHook(_pm) {
         if (address(_pm) == address(0)) revert ZeroAddress();
         if (address(_fewFactory) == address(0)) revert ZeroAddress();
@@ -179,6 +187,7 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
         if (address(_v4Quoter) == address(0)) revert ZeroAddress();
         if (_poolInitializer == address(0)) revert ZeroAddress();
         if (_residualRecipient == address(0)) revert ZeroAddress();
+        if (address(_subsidyVault) == address(0)) revert ZeroAddress();
 
         _requireCode(address(_pm));
         _requireCode(address(_fewFactory));
@@ -197,6 +206,7 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
         useNativeCurrencyForWeth = _useNativeCurrencyForWeth;
         poolInitializer = _poolInitializer;
         residualRecipient = _residualRecipient;
+        subsidyVault = _subsidyVault;
     }
 
     // ============ Hook permissions ============
@@ -406,6 +416,11 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
         _unwrapAndSettleExact(route.fewOut, outCurr, fwOutAmount);
         _payProtocolFee(outCurr, protocolFeeAmount);
 
+        // The vault refunds the protocol fee out of its own budget, straight into the PoolManager.
+        // The Hook's token balance never moves, so the zero-residue assertions below are unchanged.
+        // The refund can never exceed the protocol fee, so amountOut stays within fwOutAmount.
+        amountOut += _settleSubsidy(poolId, outCurr, protocolFeeAmount);
+
         _requireBalance(inCurr, inputBaseline);
         _requireBalance(outCurr, outputBaseline);
         _requireTokenBalance(route.fewIn, fewInBaseline);
@@ -449,6 +464,11 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
         _unwrapAndSettleExact(route.fewOut, outCurr, amountOut);
         _payProtocolFee(inCurr, protocolFeeAmount);
 
+        // The vault refunds the protocol fee out of its own budget, straight into the PoolManager.
+        // The Hook's token balance never moves, so the zero-residue assertions below are unchanged.
+        // The refund can never exceed the protocol fee, so amountIn stays above fwInRequired.
+        amountIn -= _settleSubsidy(poolId, inCurr, protocolFeeAmount);
+
         _requireBalance(inCurr, inputBaseline);
         _requireBalance(outCurr, outputBaseline);
         _requireTokenBalance(route.fewIn, fewInBaseline);
@@ -465,6 +485,13 @@ contract FewV2ShellHookBase is BaseHook, DeltaResolver, ReentrancyGuard, IAggreg
         int128 signedAmount = amountSpecified.toInt128();
         amountIn = OZSafeCast.toUint256(-int256(signedAmount));
         amountInDelta = amountIn.toInt128();
+    }
+
+    /// @dev Asks the shared vault to refund the Uniswap protocol fee out of its own budget.
+    ///      The vault pays straight into the PoolManager and books the credit on this Hook, so
+    ///      this Hook's token balance never moves and its zero-residue assertions still hold.
+    function _settleSubsidy(PoolId poolId, Currency currency, uint256 feeAmount) internal returns (uint256) {
+        return subsidyVault.settleSubsidy(poolId, Currency.unwrap(currency), feeAmount);
     }
 
     function _emitHookSwap(

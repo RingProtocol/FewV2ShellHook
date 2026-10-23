@@ -22,6 +22,8 @@ import {IWETH9} from "v4-periphery/src/interfaces/external/IWETH9.sol";
 import {IV4Quoter as ICanonicalV4Quoter} from "v4-periphery/src/interfaces/IV4Quoter.sol";
 
 import {FewV2ShellHookBase} from "../../src/FewV2ShellHookBase.sol";
+import {SubsidyVault} from "../../src/SubsidyVault.sol";
+import {ISubsidyVault} from "../../src/interfaces/ISubsidyVault.sol";
 import {FewV2ShellHook} from "../../src/FewV2ShellHook.sol";
 import {IFewFactory} from "../../src/interfaces/external/IFewFactory.sol";
 import {IFewWrappedToken} from "../../src/interfaces/external/IFewWrappedToken.sol";
@@ -139,6 +141,8 @@ contract FewV2ShellHookForkTest is Test {
         uint160 flags =
             uint160(Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG);
         bytes memory creationCode = type(FewV2ShellHook).creationCode;
+        // The vault is deliberately left unarmed, so this suite pays no subsidy.
+        ISubsidyVault vault = new SubsidyVault(IPoolManager(V4_PM), address(this));
         bytes memory ctorArgs = abi.encode(
             IPoolManager(V4_PM),
             IFewFactory(FEW_FACTORY),
@@ -148,6 +152,7 @@ contract FewV2ShellHookForkTest is Test {
             true,
             address(this),
             RESIDUAL_RECIPIENT,
+            vault,
             address(this),
             GUARDIAN,
             ADD_DELAY,
@@ -163,6 +168,7 @@ contract FewV2ShellHookForkTest is Test {
             true,
             address(this),
             RESIDUAL_RECIPIENT,
+            vault,
             address(this),
             GUARDIAN,
             ADD_DELAY,
