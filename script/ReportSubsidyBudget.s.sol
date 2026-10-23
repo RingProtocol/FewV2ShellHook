@@ -137,16 +137,27 @@ contract ReportSubsidyBudget is DeployMainnetBase {
             });
             PoolId poolId = key.toId();
             (uint160 sqrtPriceX96,, uint24 packed,) = poolManager.getSlot0(poolId);
-            (,, address pair) = hook.registeredRouteFor(poolId);
 
             console2.log("");
             console2.log(specs[i].label);
             console2.logBytes32(PoolId.unwrap(poolId));
+
+            // A pool without a registered route reverts on lookup, so the lookup is guarded.
+            address pair = address(0);
+            try hook.registeredRouteFor(poolId) returns (address, address, address registeredPair) {
+                pair = registeredPair;
+            } catch {
+                pair = address(0);
+            }
+
             console2.log("  registered: ", pair != address(0));
             console2.log("  initialized:", sqrtPriceX96 != 0);
             if (pair == address(0)) {
                 console2.log("  skipped: no registered route, so this pool never settles a protocol fee");
                 continue;
+            }
+            if (sqrtPriceX96 == 0) {
+                console2.log("  NOTE: registered but not initialized, so it cannot trade yet");
             }
 
             uint256 rawZeroForOne = ProtocolFeeLibrary.getZeroForOneFee(packed);
@@ -171,7 +182,9 @@ contract ReportSubsidyBudget is DeployMainnetBase {
             console2.log("    address: ", currency1);
             console2.log("    balance: ", vault.balance(currency1));
 
-            if (rawZeroForOne == 0 && rawOneForZero == 0) {
+            if (sqrtPriceX96 == 0) {
+                console2.log("  NOTE: the pool is not initialized, so it has no protocol fee yet.");
+            } else if (rawZeroForOne == 0 && rawOneForZero == 0) {
                 console2.log("  WARNING: the protocol fee is zero in both directions. The subsidy is");
                 console2.log("           structurally zero, so a budget for this pool only wastes money.");
             } else {
