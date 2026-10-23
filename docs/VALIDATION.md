@@ -44,6 +44,8 @@ Before the mainnet deployment, the full sequence ran with the scripts in `script
 
 The rehearsal also exposed one operator-script issue, which is now fixed. On mainnet, EOAs with an EIP-7702 delegation have a 23-byte code designator, and the pool-initialization scripts had treated them as contract wallets. The scripts now accept a plain EOA or a delegated EOA for direct broadcast, and still print calldata for real contract wallets.
 
+The `feat/subsidy` branch re-ran a rehearsal of its own on an anvil fork, against the deployment-fixed allowlist and the new `SubsidyVault`: vault deployment, salt mining, CREATE2 deployment, `CheckDeployment`, pool initialization, arming, funding, the budget report, and a live Universal Router swap that returned the protocol fee to the trader. See [Anvil Validation](ANVIL_VALIDATION.md).
+
 ## Execution matrix
 
 The fork suite executes these 12 base swap modes:

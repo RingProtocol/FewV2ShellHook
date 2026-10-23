@@ -41,7 +41,7 @@ The protocol-fee replacement is **deployed and source-verified on Ethereum mainn
 
 Hook swaps bypass the Shell Pool curve. Its `slot0`, active liquidity and fee growth do not move during those swaps. Shell LPs do not earn swap fees from this path, but the position remains owned and withdrawable through the standard v4 PositionManager, including while swaps are paused.
 
-The `feat/subsidy` branch adds the optional `SubsidyVault` subsidy: it refunds the Uniswap protocol fee to the trader out of a shared Ring budget, which brings the Shell quote back on par with a plain v4 pool at the same fee tier. The refund is capped at the protocol fee that was just charged, costs the Shell LP nothing, and fails open to zero when the vault is unarmed, paused or empty. It is not part of the deployed addresses above: it needs its own vault deployment, address mining, Hook deployment and routing review. See [Subsidy](docs/SUBSIDY.md).
+The `feat/subsidy` branch adds the optional `SubsidyVault` subsidy: it refunds the Uniswap protocol fee to the trader out of a shared Ring budget, which brings the Shell quote back on par with a plain v4 pool at the same fee tier. The refund is capped at the protocol fee that was just charged, costs the Shell LP nothing, and fails open to zero when the vault is unarmed, paused or empty. It is not part of the deployed addresses above: it needs its own vault deployment, address mining, Hook deployment and routing review. See [Subsidy](docs/SUBSIDY.md) and [Anvil Validation](docs/ANVIL_VALIDATION.md).
 
 ## Same Shell, different execution source
 

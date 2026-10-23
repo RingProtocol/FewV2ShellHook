@@ -145,6 +145,10 @@ It sends no transaction and needs no owner key. Two warnings matter:
 - a currency with a zero balance is not subsidized at all: the vault fails open, the trader pays the
   protocol fee, and the route keeps working.
 
+A pool that the Hook has not registered is reported as `registered: false` and skipped. The lookup
+reverts for such a pool, so the report guards it instead of failing: a report that dies on the first
+unregistered pool says nothing about the budget, which is the one thing it exists to say.
+
 Because the underlying allowlist is fixed at deployment, the currency set is fixed with it. A new
 origin token needs a new Hook deployment, so the report must be repeated for the new vault, and a
 balance left behind on the old vault is Ring money that no longer subsidizes anything.
@@ -201,7 +205,10 @@ init code. The order is:
 5. Arm the vault with `script/ArmSubsidyVault.s.sol:ArmSubsidyVault`, from the vault owner. The
    broadcaster must be the owner, because `setHook` is `onlyOwner`.
 6. Fund the budget per currency: `fund(currency, amount)` for ERC20 and `fundNative()` for ETH.
-   Budgets are per currency, so a route that settles in USDC needs a USDC budget.
+   Budgets are per currency, so a route that settles in USDC needs a USDC budget. `fund` pulls the
+   tokens with `safeTransferFrom`, so the owner must approve the vault for the amount first; without
+   the allowance the call reverts with `ERC20: transfer amount exceeds allowance`. `fundNative` takes
+   the value with the call and needs no allowance.
 7. Check a quote against the same pool with the protocol fee switched off. The two must match.
 8. Run `script/ReportSubsidyBudget.s.sol:ReportSubsidyBudget` and confirm that every currency that
    the recommended pools charge has a non-zero balance.
@@ -217,10 +224,12 @@ directions therefore needs a budget in both of its currencies.
 
 | Check | Result |
 |---|---|
-| Full Foundry suite against a mainnet fork | Last full run, on the parent commit: 232 tests, 230 passed, 2 failed. **Not re-run on this branch**: the build environment has no outbound network, so no fork suite below has been executed against the code in this branch. |
-| Subsidy suite (`test/fork/SubsidyFork.t.sol`) | 50 test functions: 28 in the file, 22 inherited from the protocol-fee suite. The 16 added by this branch have not been executed. |
-| Multi-pool subsidy suite (`test/fork/SubsidyMultiPoolFork.t.sol`) | 54 test functions: 4 in the file, the rest inherited. New in this branch and not executed. |
-| Governance suite (`test/fork/FewV2ShellHookFork.t.sol`) | 16 test functions; last run 16 passed, 0 failed |
+| Full fork suite on an anvil mainnet fork | **283 tests, 281 passed, 2 failed, 14 suites.** The 2 failures are in the untracked `test/fork/DeployedHookSmokeFork.t.sol` (price drift on the old deployment). See `docs/ANVIL_VALIDATION.md`. |
+| Subsidy suite (`test/fork/SubsidyFork.t.sol`) | **51 passed, 0 failed.** The 28 functions in the file plus the 23 inherited from the protocol-fee suite. |
+| Multi-pool subsidy suite (`test/fork/SubsidyMultiPoolFork.t.sol`) | **55 passed, 0 failed.** 4 in the file, the rest inherited. |
+| Governance suite (`test/fork/FewV2ShellHookFork.t.sol`) | **16 passed, 0 failed** |
+| Deployment rehearsal on an anvil fork | Vault, mined Hook address, CREATE2 deployment, `CheckDeployment`, pool initialization, arming, funding and the budget report all completed. See `docs/ANVIL_VALIDATION.md`. |
+| Live subsidy on the deployed Hook | A Universal Router swap with the 0.1% protocol fee on returned the fee-free amount to the trader and drew exactly the fee from the vault. See `docs/ANVIL_VALIDATION.md`. |
 | Fee arithmetic fuzz | 10,000 cases against an independent full-precision ceiling reference |
 | `FewV2ShellHook` runtime | 23,724 bytes; 852 bytes below the EIP-170 limit |
 | `SubsidyVault` runtime | 3,044 bytes |
@@ -234,9 +243,8 @@ deployed before the subsidy existed and the file is not part of the branch.
 
 This branch changes the Hook bytecode. The underlying allowlist lost its time-locked mutation
 paths, so the deployment target is smaller and its constructor takes one argument less, which
-changes the mined address. Every fork suite therefore has to be re-run against the new code before
-this branch merges, and the counts above must not be read as a green run of it. The hermetic suite,
-the bytecode sizes and the formatter are the checks that were actually executed here.
+changes the mined address. Every fork suite has been re-run against the new code, on an anvil
+mainnet fork, and the counts above are the results of that run.
 
 The subsidy tests run against the real PoolManager, the real controller and the real TokenJar on a
 mainnet fork. They arm the vault with real funds, then check the trader's balance, the TokenJar's
