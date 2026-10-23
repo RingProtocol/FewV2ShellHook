@@ -25,15 +25,14 @@ abstract contract DeployMainnetBase is Script {
     address constant FEW_FACTORY_DEFAULT = 0x7D86394139bf1122E82FDF45Bb4e3b038A4464DD;
     address constant FEW_V2_FACTORY_DEFAULT = 0xeb2A625B704d73e82946D8d026E1F588Eed06416;
 
-    // Genesis allowlist underlyings (canonical Ethereum mainnet addresses). These cover the eight
-    // recommended pools; everything else must go through the time-locked governance add path.
+    // Genesis allowlist underlyings (canonical Ethereum mainnet addresses). These are the complete
+    // token set of the deployment: the allowlist is immutable, so anything outside this list
+    // requires a new Hook deployment.
     address constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
     address constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
     address constant USDR = 0x4EA40dcee961675683e0a2e1721Bd49CB9bca913;
-
-    uint256 constant DEFAULT_ADD_TIMELOCK_DELAY = 48 hours;
 
     struct HookConfig {
         address poolManager;
@@ -46,7 +45,6 @@ abstract contract DeployMainnetBase is Script {
         address subsidyVault;
         address owner;
         address guardian;
-        uint256 addTimelockDelay;
         address[] initialAllowed;
     }
 
@@ -73,7 +71,6 @@ abstract contract DeployMainnetBase is Script {
         c.subsidyVault = vm.envAddress("SUBSIDY_VAULT_ADDRESS");
         c.owner = vm.envAddress("HOOK_OWNER_ADDRESS");
         c.guardian = vm.envAddress("GUARDIAN_ADDRESS");
-        c.addTimelockDelay = vm.envOr("ADD_TIMELOCK_DELAY", DEFAULT_ADD_TIMELOCK_DELAY);
         c.initialAllowed = _genesisAllowlist(c.weth);
     }
 
@@ -90,7 +87,6 @@ abstract contract DeployMainnetBase is Script {
             c.subsidyVault,
             c.owner,
             c.guardian,
-            c.addTimelockDelay,
             c.initialAllowed
         );
     }
@@ -125,7 +121,6 @@ abstract contract DeployMainnetBase is Script {
         console2.log("Residual target: ", c.residualRecipient);
         console2.log("Owner:           ", c.owner);
         console2.log("Guardian:        ", c.guardian);
-        console2.log("Add timelock (s):", c.addTimelockDelay);
         console2.log("Native ETH mode: ", useNativeCurrencyForWeth);
         console2.log("Genesis allowlist size:", c.initialAllowed.length);
         for (uint256 i = 0; i < c.initialAllowed.length; i++) {
@@ -166,7 +161,6 @@ abstract contract DeployMainnetBase is Script {
         // Governance configuration must match what the address was mined against.
         require(deployed.owner() == c.owner, "owner mismatch in deployed hook");
         require(deployed.guardian() == c.guardian, "guardian mismatch in deployed hook");
-        require(deployed.addTimelockDelay() == c.addTimelockDelay, "addTimelockDelay mismatch in deployed hook");
         for (uint256 i = 0; i < c.initialAllowed.length; i++) {
             require(deployed.allowedUnderlying(c.initialAllowed[i]), "genesis underlying not allowlisted");
         }

@@ -17,7 +17,7 @@ import {FewV2ShellHook} from "../src/FewV2ShellHook.sol";
 /// @dev Uses the same role and dependency environment as MineHookAddress and the deploy scripts:
 ///
 ///   POOL_INITIALIZER_ADDRESS, RESIDUAL_RECIPIENT_ADDRESS, HOOK_OWNER_ADDRESS, GUARDIAN_ADDRESS
-///   (constructor values), plus the optional dependency overrides and ADD_TIMELOCK_DELAY.
+///   (constructor values), plus the optional dependency overrides.
 ///
 /// Required:
 ///   HOOK_ADDRESS=0x...          deployed Hook
@@ -84,7 +84,6 @@ contract CheckDeployment is DeployMainnetBase {
         require(hook.CANONICAL_TICK_SPACING() == 1, "CANONICAL_TICK_SPACING must be 1");
         require(hook.protocolFeeFlags() == 1 << 11, "wrong Uniswap fee classification");
         require(hook.protocolFeeMultiplier() == 25, "wrong Aggregator fee multiplier");
-        require(hook.addTimelockDelay() == c.addTimelockDelay, "addTimelockDelay mismatch");
         require(hook.owner() == expectOwner, "owner mismatch");
         require(hook.guardian() == expectGuardian, "guardian mismatch");
         require(hook.paused() == expectPaused, "paused state mismatch");
@@ -97,7 +96,6 @@ contract CheckDeployment is DeployMainnetBase {
         console2.log("Pending owner:    ", hook.pendingOwner());
         console2.log("Guardian:         ", hook.guardian());
         console2.log("Paused:           ", hook.paused());
-        console2.log("Add timelock (s): ", hook.addTimelockDelay());
         console2.log("Pool initializer: ", hook.poolInitializer());
         console2.log("Residual target:  ", hook.residualRecipient());
         console2.log("Runtime codehash:");

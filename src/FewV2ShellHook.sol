@@ -20,53 +20,44 @@ import {FewV2ShellHookBase} from "./FewV2ShellHookBase.sol";
 
 /// @title FewV2ShellHook
 /// @notice FewV2ShellHookBase plus a minimal, least-privilege governance layer modeled on Uniswap's
-///         Permissioned Pools: a mutable underlying allowlist (checked at registration) and a swap
-///         pause. The permissionless FewFactory cannot express "which origin tokens are trusted"
+///         Permissioned Pools: a deployment-time underlying allowlist (checked at registration) and a
+///         swap pause. The permissionless FewFactory cannot express "which origin tokens are trusted"
 ///         (createToken is open to anyone), so this layer is what actually filters the token set.
 ///
 /// @dev Deliberate trust boundaries, mirroring the admin-less base contract:
-///      - The owner can enable underlyings (time-locked add), disable them (immediate removal), and
-///        unpause. The owner cannot change a registered route, move balances, or withdraw LP
-///        positions — those remain impossible for every role.
-///      - A separate guardian handles disable-only emergency actions: pause swaps and remove/cancel an
-///        underlying. The guardian can never enable a token or unpause, so it adds no theft surface.
+///      - The underlying allowlist is fixed at deployment. There is no add, no remove and no timelock,
+///        so a compromised owner key cannot widen the token set after the fact, and no role can strand
+///        a live pool by removing one of its endpoints.
+///      - The owner can unpause, and can replace the pool initializer and the residual recipient. The
+///        owner cannot change a registered route, move balances, or withdraw LP positions — those
+///        remain impossible for every role.
+///      - A separate guardian handles disable-only emergency actions: pause swaps. The guardian can
+///        never enable a token or unpause, so it adds no theft surface.
 ///      - The owner can replace the pool initializer and the residual recipient, so losing either key
 ///        does not force a redeploy. A new initializer can only register new pools.
 ///      - Ownership moves only by two-step transfer and cannot be renounced, so an owner always exists
 ///        to lift a guardian pause.
-///      - The add timelock is immutable, so a compromised owner key still cannot instantly admit a
-///        scam underlying and pair it against team liquidity within the delay window.
-///      - There is no external allowlist-checker and no upgrade path; changing supported tokens
-///        beyond add/remove, or changing dependencies, requires a new Hook deployment.
+///      - There is no external allowlist-checker and no upgrade path; changing the supported token
+///        set or changing dependencies requires a new Hook deployment.
 ///
-///      The allowlist is enforced in `beforeInitialize` only. Removing an underlying blocks future
-///      registrations but does not disable a pool that is already registered; use `pause()` for a
-///      live incident, and migrate team liquidity out of the affected pool.
+///      The allowlist is enforced in `beforeInitialize` only. It gates future registrations; it does
+///      not disable a pool that is already registered. Use `pause()` for a live incident, and migrate
+///      team liquidity out of the affected pool.
 contract FewV2ShellHook is FewV2ShellHookBase, Ownable2Step, Pausable {
     error UnderlyingNotAllowlisted(address underlying);
-    error UnderlyingAlreadyAllowlisted(address underlying);
-    error UnderlyingNotProposed(address underlying);
-    error AddTimelockNotElapsed(address underlying, uint256 readyAt);
     error NotGuardianOrOwner(address caller);
     error ZeroGuardian();
     error RenounceDisabled();
-
-    /// @notice Minimum delay between proposing and committing a new allowlisted underlying.
-    /// @dev Immutable so a compromised owner cannot shorten it to admit a malicious token instantly.
-    uint256 public immutable addTimelockDelay;
 
     /// @notice Account allowed to pause swaps (owner unpauses). Fast incident-response role only.
     address public guardian;
 
     /// @notice Origin tokens (WETH for native ETH) that may be registered as a Shell pool endpoint.
+    /// @dev Fixed at deployment: no role can add or remove an entry. Widening the token set requires
+    ///      a new Hook deployment, which also means new pool ids and a new route submission.
     mapping(address => bool) public allowedUnderlying;
 
-    /// @notice Timestamp at which a proposed add becomes committable; 0 means not proposed.
-    mapping(address => uint256) public underlyingAddReadyAt;
-
-    event UnderlyingAddProposed(address indexed underlying, uint256 readyAt, address indexed proposer);
-    event UnderlyingAllowed(address indexed underlying, address indexed committer);
-    event UnderlyingDisallowed(address indexed underlying, address indexed remover);
+    event UnderlyingAllowed(address indexed underlying, address indexed deployer);
     event GuardianUpdated(address indexed previousGuardian, address indexed newGuardian);
     event PoolInitializerUpdated(address indexed previousInitializer, address indexed newInitializer);
     event ResidualRecipientUpdated(address indexed previousRecipient, address indexed newRecipient);
@@ -88,7 +79,6 @@ contract FewV2ShellHook is FewV2ShellHookBase, Ownable2Step, Pausable {
         ISubsidyVault _subsidyVault,
         address _owner,
         address _guardian,
-        uint256 _addTimelockDelay,
         address[] memory _initialAllowed
     )
         FewV2ShellHookBase(
@@ -106,9 +96,9 @@ contract FewV2ShellHook is FewV2ShellHookBase, Ownable2Step, Pausable {
     {
         if (_guardian == address(0)) revert ZeroGuardian();
         guardian = _guardian;
-        addTimelockDelay = _addTimelockDelay;
 
-        // Genesis allowlist is trusted deploy-time configuration, so it is set without the timelock.
+        // The allowlist is the complete, immutable token set of this deployment. It is trusted
+        // deploy-time configuration, so it needs no timelock and no owner action afterwards.
         for (uint256 i = 0; i < _initialAllowed.length; i++) {
             address underlying = _initialAllowed[i];
             if (underlying == address(0)) revert ZeroAddress();
@@ -141,35 +131,6 @@ contract FewV2ShellHook is FewV2ShellHookBase, Ownable2Step, Pausable {
     function _requireUnderlyingAllowed(address currency) internal view {
         address underlying = currency == address(0) ? address(weth) : currency;
         if (!allowedUnderlying[underlying]) revert UnderlyingNotAllowlisted(underlying);
-    }
-
-    // ============ Allowlist governance (owner) ============
-
-    /// @notice Start the timelock for adding a new allowlisted underlying.
-    function proposeUnderlying(address underlying) external onlyOwner {
-        if (underlying == address(0)) revert ZeroAddress();
-        if (allowedUnderlying[underlying]) revert UnderlyingAlreadyAllowlisted(underlying);
-        uint256 readyAt = block.timestamp + addTimelockDelay;
-        underlyingAddReadyAt[underlying] = readyAt;
-        emit UnderlyingAddProposed(underlying, readyAt, msg.sender);
-    }
-
-    /// @notice Finalize a proposed add once the timelock has elapsed.
-    function commitUnderlying(address underlying) external onlyOwner {
-        uint256 readyAt = underlyingAddReadyAt[underlying];
-        if (readyAt == 0) revert UnderlyingNotProposed(underlying);
-        if (block.timestamp < readyAt) revert AddTimelockNotElapsed(underlying, readyAt);
-        allowedUnderlying[underlying] = true;
-        underlyingAddReadyAt[underlying] = 0;
-        emit UnderlyingAllowed(underlying, msg.sender);
-    }
-
-    /// @notice Remove an underlying immediately and cancel any pending add. Disable-only, callable by
-    ///         the guardian or owner for fast incident response; it can never enable a token.
-    function removeUnderlying(address underlying) external onlyGuardianOrOwner {
-        allowedUnderlying[underlying] = false;
-        underlyingAddReadyAt[underlying] = 0;
-        emit UnderlyingDisallowed(underlying, msg.sender);
     }
 
     // ============ Pause (guardian or owner pauses, only owner unpauses) ============
@@ -206,8 +167,8 @@ contract FewV2ShellHook is FewV2ShellHookBase, Ownable2Step, Pausable {
 
     // ============ Ownership ============
 
-    /// @notice Disabled. Without an owner, a guardian pause could never be lifted, no underlying could be
-    ///         admitted, and the guardian, pool initializer and residual recipient could not be replaced.
+    /// @notice Disabled. Without an owner, a guardian pause could never be lifted, and the guardian,
+    ///         pool initializer and residual recipient could not be replaced.
     function renounceOwnership() public pure override {
         revert RenounceDisabled();
     }

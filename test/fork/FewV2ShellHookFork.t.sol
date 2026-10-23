@@ -73,7 +73,7 @@ contract FeeOnTransferToken is ERC20 {
 }
 
 /// @notice Mainnet fork suite for the governance layer added in FewV2ShellHook:
-///         underlying allowlist, add-timelock, immediate removal, pause split, 2-step ownership,
+///         immutable underlying allowlist, pause split, 2-step ownership,
 ///         compromised-owner bounds, and runtime fail-closed defense-in-depth. Skipped without RPC.
 contract FewV2ShellHookForkTest is Test {
     using PoolIdLibrary for PoolKey;
@@ -95,7 +95,6 @@ contract FewV2ShellHookForkTest is Test {
     address constant SEEDER = address(0xBAD);
     address constant GUARDIAN = address(0x6A5D);
     address constant STRANGER = address(0x57A2);
-    uint256 constant ADD_DELAY = 48 hours;
 
     bool forked;
     FewV2ShellHook hook;
@@ -155,7 +154,6 @@ contract FewV2ShellHookForkTest is Test {
             vault,
             address(this),
             GUARDIAN,
-            ADD_DELAY,
             allowed
         );
         (address mined, bytes32 salt) = HookMiner.find(address(this), flags, creationCode, ctorArgs);
@@ -171,10 +169,16 @@ contract FewV2ShellHookForkTest is Test {
             vault,
             address(this),
             GUARDIAN,
-            ADD_DELAY,
             allowed
         );
         require(address(deployed) == mined, "hook address mismatch");
+    }
+
+    function _allowlistWith(address extra) internal pure returns (address[] memory allowed) {
+        allowed = new address[](3);
+        allowed[0] = WETH;
+        allowed[1] = USDC;
+        allowed[2] = extra;
     }
 
     function _createCanonicalWrapperAndPair(address token, uint256 badAmount, uint256 ethAmount)
@@ -200,12 +204,16 @@ contract FewV2ShellHookForkTest is Test {
     }
 
     function _shellKey(address token) internal view returns (PoolKey memory) {
+        return _shellKeyFor(hook, token);
+    }
+
+    function _shellKeyFor(FewV2ShellHook target, address token) internal pure returns (PoolKey memory) {
         return PoolKey({
             currency0: Currency.wrap(address(0)),
             currency1: Currency.wrap(token),
             fee: CANONICAL_POOL_FEE,
             tickSpacing: CANONICAL_TICK_SPACING,
-            hooks: IHooks(address(hook))
+            hooks: IHooks(address(target))
         });
     }
 
@@ -230,9 +238,9 @@ contract FewV2ShellHookForkTest is Test {
     function test_genesis_allowlistedUnderlyingsRegister_andAreSeeded() public requireFork {
         assertTrue(hook.allowedUnderlying(WETH), "WETH allowlisted at genesis");
         assertTrue(hook.allowedUnderlying(USDC), "USDC allowlisted at genesis");
+        assertFalse(hook.allowedUnderlying(address(0xDEAD)), "token outside the genesis set is not allowlisted");
         assertEq(hook.owner(), address(this), "owner set");
         assertEq(hook.guardian(), GUARDIAN, "guardian set");
-        assertEq(hook.addTimelockDelay(), ADD_DELAY, "timelock delay set");
         assertTrue(hook.fewV2PairRegistered(FEWV2_PAIR), "canonical ETH/USDC admitted");
     }
 
@@ -243,83 +251,61 @@ contract FewV2ShellHookForkTest is Test {
         uint160 price = hook.previewInitializationPrice(key);
 
         assertFalse(hook.allowedUnderlying(address(token)), "token not allowlisted");
-        vm.expectRevert();
-        IPoolManager(V4_PM).initialize(key, price);
-    }
-
-    // ───────────────────────── add timelock ─────────────────────────
-
-    function test_addTimelock_blocksImmediateCommit_allowsAfterDelay() public requireFork {
-        MockUnderlying token = new MockUnderlying();
-        _createCanonicalWrapperAndPair(address(token), 1_000 ether, 1 ether);
-        PoolKey memory key = _shellKey(address(token));
-        uint160 price = hook.previewInitializationPrice(key);
-
-        hook.proposeUnderlying(address(token));
-
-        // Registration before commit still reverts.
-        vm.expectRevert();
-        IPoolManager(V4_PM).initialize(key, price);
-
-        // Immediate commit reverts: a compromised owner cannot admit a token within the delay.
         vm.expectRevert(
             abi.encodeWithSelector(
-                FewV2ShellHook.AddTimelockNotElapsed.selector, address(token), block.timestamp + ADD_DELAY
+                CustomRevert.WrappedError.selector,
+                address(hook),
+                IHooks.beforeInitialize.selector,
+                abi.encodeWithSelector(FewV2ShellHook.UnderlyingNotAllowlisted.selector, address(token)),
+                abi.encodePacked(Hooks.HookCallFailed.selector)
             )
         );
-        hook.commitUnderlying(address(token));
-
-        // After the timelock, commit succeeds and the pool registers.
-        vm.warp(block.timestamp + ADD_DELAY);
-        hook.commitUnderlying(address(token));
-        assertTrue(hook.allowedUnderlying(address(token)), "token allowlisted after delay");
-
-        IPoolManager(V4_PM).initialize(key, hook.previewInitializationPrice(key));
-        (,, address registeredPair) = hook.registeredRouteFor(key.toId());
-        assertTrue(registeredPair != address(0), "pool registered after commit");
-    }
-
-    function test_commit_revertsWhenNotProposed() public requireFork {
-        MockUnderlying token = new MockUnderlying();
-        vm.expectRevert(abi.encodeWithSelector(FewV2ShellHook.UnderlyingNotProposed.selector, address(token)));
-        hook.commitUnderlying(address(token));
-    }
-
-    // ───────────────────────── removal (instant) ─────────────────────────
-
-    function test_removal_isImmediate_blocksNewRegistration_butLivePoolKeepsSwapping() public requireFork {
-        // ETH/USDC already registered at genesis. Remove USDC.
-        assertGt(_swapEthForUsdc(), 0, "swap works before removal");
-        hook.removeUnderlying(USDC);
-        assertFalse(hook.allowedUnderlying(USDC), "USDC removed");
-
-        // The already-registered pool still swaps (allowlist is a registration gate, not a swap gate).
-        assertGt(_swapEthForUsdc(), 0, "already-registered pool keeps swapping after removal");
-
-        // A fresh pool whose underlying was removed can no longer be registered.
-        MockUnderlying token = new MockUnderlying();
-        _createCanonicalWrapperAndPair(address(token), 1_000 ether, 1 ether);
-        hook.proposeUnderlying(address(token));
-        vm.warp(block.timestamp + ADD_DELAY);
-        hook.commitUnderlying(address(token));
-        hook.removeUnderlying(address(token));
-
-        PoolKey memory key = _shellKey(address(token));
-        uint160 price = hook.previewInitializationPrice(key);
-        vm.expectRevert();
         IPoolManager(V4_PM).initialize(key, price);
     }
 
-    function test_removal_cancelsPendingProposal() public requireFork {
-        MockUnderlying token = new MockUnderlying();
-        hook.proposeUnderlying(address(token));
-        assertGt(hook.underlyingAddReadyAt(address(token)), 0, "proposal recorded");
-        hook.removeUnderlying(address(token));
-        assertEq(hook.underlyingAddReadyAt(address(token)), 0, "pending proposal cancelled");
+    // ───────────────────────── immutable allowlist ─────────────────────────
 
-        vm.warp(block.timestamp + ADD_DELAY + 1);
-        vm.expectRevert(abi.encodeWithSelector(FewV2ShellHook.UnderlyingNotProposed.selector, address(token)));
-        hook.commitUnderlying(address(token));
+    /// @notice The allowlist is the complete token set of this deployment. The removed governance
+    ///         selectors must not exist on the contract at all, so neither the owner nor the
+    ///         guardian can widen or narrow it.
+    function test_allowlist_noGovernanceSelectorsExist() public requireFork {
+        address token = address(0xA11CE);
+
+        (bool ok,) = address(hook).call(abi.encodeWithSignature("proposeUnderlying(address)", token));
+        assertFalse(ok, "proposeUnderlying must not exist");
+        (ok,) = address(hook).call(abi.encodeWithSignature("commitUnderlying(address)", token));
+        assertFalse(ok, "commitUnderlying must not exist");
+        (ok,) = address(hook).call(abi.encodeWithSignature("removeUnderlying(address)", token));
+        assertFalse(ok, "removeUnderlying must not exist");
+
+        assertFalse(hook.allowedUnderlying(token), "token stays outside the allowlist");
+        assertTrue(hook.allowedUnderlying(USDC), "USDC stays inside the allowlist");
+    }
+
+    /// @notice An allowlisted underlying still registers normally: the gate rejects outsiders, it
+    ///         does not block the genesis set.
+    function test_allowlist_allowlistedUnderlyingRegistersNormally() public requireFork {
+        MockUnderlying token = new MockUnderlying();
+        _createCanonicalWrapperAndPair(address(token), 1_000 ether, 1 ether);
+
+        FewV2ShellHook wide = _deployHook(_allowlistWith(address(token)));
+        assertTrue(wide.allowedUnderlying(address(token)), "token allowlisted at genesis");
+
+        PoolKey memory key = _shellKeyFor(wide, address(token));
+        IPoolManager(V4_PM).initialize(key, wide.previewInitializationPrice(key));
+        (,, address registeredPair) = wide.registeredRouteFor(key.toId());
+        assertTrue(registeredPair != address(0), "allowlisted pool registered");
+    }
+
+    /// @notice A live pool keeps swapping and its endpoint stays allowlisted: there is no way to
+    ///         strand a registered pool by removing an entry.
+    function test_allowlist_entryCannotBeRemovedAndLivePoolKeepsSwapping() public requireFork {
+        assertGt(_swapEthForUsdc(), 0, "swap works");
+
+        (bool ok,) = address(hook).call(abi.encodeWithSignature("removeUnderlying(address)", USDC));
+        assertFalse(ok, "removeUnderlying must not exist");
+        assertTrue(hook.allowedUnderlying(USDC), "USDC still allowlisted");
+        assertGt(_swapEthForUsdc(), 0, "already-registered pool keeps swapping");
     }
 
     // ───────────────────────── pause (guardian pauses, owner unpauses) ─────────────────────────
@@ -363,49 +349,50 @@ contract FewV2ShellHookForkTest is Test {
 
     // ───────────────────────── access control / compromised-owner bounds ─────────────────────────
 
-    function test_access_ownerOnlyEnableAndUnpause() public requireFork {
-        MockUnderlying token = new MockUnderlying();
-
+    function test_access_ownerOnlyPowers() public requireFork {
         vm.startPrank(STRANGER);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, STRANGER));
-        hook.proposeUnderlying(address(token));
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, STRANGER));
-        hook.commitUnderlying(address(token));
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, STRANGER));
         hook.unpause();
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, STRANGER));
         hook.setGuardian(STRANGER);
-        // removeUnderlying is disable-only (guardian or owner), so a stranger hits NotGuardianOrOwner.
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, STRANGER));
+        hook.setPoolInitializer(STRANGER);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, STRANGER));
+        hook.setResidualRecipient(STRANGER);
+        // pause() is the only guardian-or-owner action left.
         vm.expectRevert(abi.encodeWithSelector(FewV2ShellHook.NotGuardianOrOwner.selector, STRANGER));
-        hook.removeUnderlying(USDC);
+        hook.pause();
         vm.stopPrank();
     }
 
-    function test_guardian_disableOnlyPowers() public requireFork {
-        MockUnderlying token = new MockUnderlying();
+    function test_guardian_canOnlyPause() public requireFork {
+        // Guardian can pause.
+        vm.prank(GUARDIAN);
+        hook.pause();
+        assertTrue(hook.paused(), "guardian paused");
 
-        // Guardian cannot enable (add) a token.
+        // Guardian cannot unpause.
         vm.prank(GUARDIAN);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, GUARDIAN));
-        hook.proposeUnderlying(address(token));
+        hook.unpause();
 
-        // Owner proposes; guardian cancels the pending add.
-        hook.proposeUnderlying(address(token));
-        assertGt(hook.underlyingAddReadyAt(address(token)), 0, "proposal recorded");
+        // Guardian cannot rotate the roles either.
         vm.prank(GUARDIAN);
-        hook.removeUnderlying(address(token));
-        assertEq(hook.underlyingAddReadyAt(address(token)), 0, "guardian cancelled pending add");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, GUARDIAN));
+        hook.setGuardian(GUARDIAN);
+        vm.prank(GUARDIAN);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, GUARDIAN));
+        hook.setPoolInitializer(GUARDIAN);
+        vm.prank(GUARDIAN);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, GUARDIAN));
+        hook.setResidualRecipient(GUARDIAN);
 
-        // Guardian can remove an active allowlist entry.
+        // The allowlist is out of every role's reach.
         assertTrue(hook.allowedUnderlying(USDC), "USDC allowlisted");
-        vm.prank(GUARDIAN);
-        hook.removeUnderlying(USDC);
-        assertFalse(hook.allowedUnderlying(USDC), "guardian removed active underlying");
 
-        // But guardian still cannot re-enable it.
-        vm.prank(GUARDIAN);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, GUARDIAN));
-        hook.commitUnderlying(USDC);
+        // The owner can always lift the guardian's pause.
+        hook.unpause();
+        assertFalse(hook.paused(), "owner can still unpause");
     }
 
     function test_ownership_twoStepTransfer() public requireFork {
@@ -414,10 +401,9 @@ contract FewV2ShellHookForkTest is Test {
         assertEq(hook.pendingOwner(), STRANGER, "pending owner set");
 
         // Pending owner cannot yet exercise owner powers.
-        MockUnderlying token = new MockUnderlying();
         vm.prank(STRANGER);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, STRANGER));
-        hook.proposeUnderlying(address(token));
+        hook.setResidualRecipient(STRANGER);
 
         vm.prank(STRANGER);
         hook.acceptOwnership();
@@ -425,7 +411,7 @@ contract FewV2ShellHookForkTest is Test {
 
         // Old owner can no longer exercise owner-only powers.
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
-        hook.proposeUnderlying(address(token));
+        hook.setResidualRecipient(address(this));
     }
 
     function test_ownership_cannotBeRenounced() public requireFork {
@@ -461,35 +447,35 @@ contract FewV2ShellHookForkTest is Test {
     }
 
     function test_setPoolInitializer_movesRegistrationAuthority() public requireFork {
+        MockUnderlying token = new MockUnderlying();
+        _createCanonicalWrapperAndPair(address(token), 1_000 ether, 1 ether);
+
+        // A dedicated deployment whose genesis allowlist covers the mock token.
+        FewV2ShellHook wide = _deployHook(_allowlistWith(address(token)));
         address newInitializer = address(0x1A17);
 
         vm.prank(GUARDIAN);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, GUARDIAN));
-        hook.setPoolInitializer(GUARDIAN);
+        wide.setPoolInitializer(GUARDIAN);
         vm.prank(STRANGER);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, STRANGER));
-        hook.setPoolInitializer(STRANGER);
+        wide.setPoolInitializer(STRANGER);
         vm.expectRevert(FewV2ShellHookBase.ZeroAddress.selector);
-        hook.setPoolInitializer(address(0));
+        wide.setPoolInitializer(address(0));
 
-        vm.expectEmit(true, true, true, true, address(hook));
+        vm.expectEmit(true, true, true, true, address(wide));
         emit FewV2ShellHook.PoolInitializerUpdated(address(this), newInitializer);
-        hook.setPoolInitializer(newInitializer);
-        assertEq(hook.poolInitializer(), newInitializer, "initializer replaced");
+        wide.setPoolInitializer(newInitializer);
+        assertEq(wide.poolInitializer(), newInitializer, "initializer replaced");
 
-        MockUnderlying token = new MockUnderlying();
-        _createCanonicalWrapperAndPair(address(token), 1_000 ether, 1 ether);
-        hook.proposeUnderlying(address(token));
-        vm.warp(block.timestamp + ADD_DELAY);
-        hook.commitUnderlying(address(token));
-        PoolKey memory key = _shellKey(address(token));
-        uint160 price = hook.previewInitializationPrice(key);
+        PoolKey memory key = _shellKeyFor(wide, address(token));
+        uint160 price = wide.previewInitializationPrice(key);
 
         // The previous initializer is still the owner, but can no longer register pools.
         vm.expectRevert(
             abi.encodeWithSelector(
                 CustomRevert.WrappedError.selector,
-                address(hook),
+                address(wide),
                 IHooks.beforeInitialize.selector,
                 abi.encodeWithSelector(FewV2ShellHookBase.UnauthorizedPoolInitializer.selector, address(this)),
                 abi.encodePacked(Hooks.HookCallFailed.selector)
@@ -499,7 +485,7 @@ contract FewV2ShellHookForkTest is Test {
 
         vm.prank(newInitializer);
         IPoolManager(V4_PM).initialize(key, price);
-        (,, address registeredPair) = hook.registeredRouteFor(key.toId());
+        (,, address registeredPair) = wide.registeredRouteFor(key.toId());
         assertTrue(registeredPair != address(0), "new initializer registered the pool");
         assertGt(_swapEthForUsdc(), 0, "existing route unaffected");
     }
@@ -547,12 +533,11 @@ contract FewV2ShellHookForkTest is Test {
         FeeOnTransferToken bad = new FeeOnTransferToken(500); // 5%
         _createCanonicalWrapperAndPair(address(bad), 1_000 ether, 1 ether);
 
-        hook.proposeUnderlying(address(bad));
-        vm.warp(block.timestamp + ADD_DELAY);
-        hook.commitUnderlying(address(bad));
+        // A dedicated deployment whose genesis allowlist covers the bad token.
+        FewV2ShellHook wide = _deployHook(_allowlistWith(address(bad)));
 
-        PoolKey memory key = _shellKey(address(bad));
-        IPoolManager(V4_PM).initialize(key, hook.previewInitializationPrice(key));
+        PoolKey memory key = _shellKeyFor(wide, address(bad));
+        IPoolManager(V4_PM).initialize(key, wide.previewInitializationPrice(key));
 
         uint256 pmEthBefore = V4_PM.balance;
         uint256 amountIn = 0.01 ether;

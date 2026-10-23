@@ -14,7 +14,7 @@ import {FewV2ShellHook} from "../src/FewV2ShellHook.sol";
 ///         so the permission mask is identical to the admin-less base hook.
 ///
 ///         Run BEFORE deployment day, with the SAME env that deployment will use (the owner,
-///         guardian, delay and genesis allowlist are part of the init code and therefore the
+///         guardian and genesis allowlist are part of the init code and therefore the
 ///         address):
 ///
 ///             RESIDUAL_RECIPIENT_ADDRESS=0x... \
@@ -64,7 +64,6 @@ contract MineHookAddress is DeployMainnetBase {
         console2.log("Subsidy vault:  ", c.subsidyVault);
         console2.log("Owner:           ", c.owner);
         console2.log("Guardian:        ", c.guardian);
-        console2.log("Add timelock (s):", c.addTimelockDelay);
         console2.log("Genesis allowlist size:", c.initialAllowed.length);
         for (uint256 i = 0; i < c.initialAllowed.length; i++) {
             console2.log("  allow:", c.initialAllowed[i]);

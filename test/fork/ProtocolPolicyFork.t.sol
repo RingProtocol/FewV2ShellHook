@@ -54,7 +54,6 @@ contract ProtocolPolicyForkTest is EthWbtcShellParityForkTest {
             vault,
             address(this),
             address(this),
-            uint256(48 hours),
             allowed
         );
         uint160 flags = Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG;
@@ -72,7 +71,6 @@ contract ProtocolPolicyForkTest is EthWbtcShellParityForkTest {
             vault,
             address(this),
             address(this),
-            48 hours,
             allowed
         );
         assertEq(address(candidate), predicted);
