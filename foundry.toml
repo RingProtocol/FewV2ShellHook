@@ -5,7 +5,13 @@ out = 'out'
 libs = ['lib']
 solc_version = '0.8.26'
 optimizer = true
-optimizer_runs = 200
+optimizer_runs = 1
+# The Shell Hook ships at 24.4 KB against the 24,576 B EIP-170 ceiling, so the
+# deployment target is byte-constrained, not gas-constrained. Lowering the
+# optimizer run count and dropping the CBOR metadata hash buys ~102 B of
+# headroom without touching the hook's ABI, storage layout or revert reasons.
+bytecode_hash = "none"
+cbor_metadata = false
 via_ir = true
 evm_version = 'cancun'
 fs_permissions = [{ access = "read", path = "out" }]
