@@ -224,7 +224,7 @@ directions therefore needs a budget in both of its currencies.
 
 | Check | Result |
 |---|---|
-| Full fork suite on an anvil mainnet fork | **283 tests, 281 passed, 2 failed, 14 suites.** The 2 failures are in the untracked `test/fork/DeployedHookSmokeFork.t.sol` (price drift on the old deployment). See `docs/ANVIL_VALIDATION.md`. |
+| Full fork suite on an anvil mainnet fork | **276 tests, 276 passed, 0 failed, 13 suites.** See `docs/ANVIL_VALIDATION.md`. |
 | Subsidy suite (`test/fork/SubsidyFork.t.sol`) | **51 passed, 0 failed.** The 28 functions in the file plus the 23 inherited from the protocol-fee suite. |
 | Multi-pool subsidy suite (`test/fork/SubsidyMultiPoolFork.t.sol`) | **55 passed, 0 failed.** 4 in the file, the rest inherited. |
 | Governance suite (`test/fork/FewV2ShellHookFork.t.sol`) | **16 passed, 0 failed** |
@@ -236,10 +236,13 @@ directions therefore needs a budget in both of its currencies.
 | Hermetic suite (`forge test --no-match-path "test/fork/*"`) | 20 passed, 0 failed |
 | `forge fmt --check` on every tracked source, script and test file | Clean |
 
-The two failures are in `test/fork/DeployedHookSmokeFork.t.sol`, an untracked local file that
-exercises the previously deployed mainnet Hook address against live prices. They predate this
-branch and are price drift on the old deployment, not a regression: the address under test was
-deployed before the subsidy existed and the file is not part of the branch.
+The fork suite covers two kinds of contract. Most suites deploy the Hook themselves and therefore
+test this branch's bytecode directly. `DeployedQuoteParityFork` is the exception: it pins the
+October 12 mainnet deployment at block `26197122` and checks it through the official Universal
+Router, because it exists to pin a historical regression rather than to test this branch. An
+untracked local file that exercised the same address at the latest block has been removed: it
+forked at a moving block, so its price assertions drifted, and every case it held was already
+covered by a suite that pins its block.
 
 This branch changes the Hook bytecode. The underlying allowlist lost its time-locked mutation
 paths, so the deployment target is smaller and its constructor takes one argument less, which

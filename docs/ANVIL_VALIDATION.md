@@ -22,9 +22,8 @@ instance forking Ethereum mainnet. It covers three things the CI fork job does n
 | Foundry | `forge` from the pinned toolchain, `solc 0.8.26`, `via_ir = true` |
 
 Two anvil instances were used because the suites need two different baselines. Most suites pin
-`TEST_FORK_BLOCK=25934149`, but `DeployedQuoteParityFork` hard-codes block `26197122` and
-`DeployedHookSmokeFork` forks at the latest block, so instance A was forked at the tip to keep
-both reachable.
+`TEST_FORK_BLOCK=25934149`, but `DeployedQuoteParityFork` hard-codes block `26197122`, so instance
+A was forked at the tip to keep that historical block reachable.
 
 Anvil preserves the upstream archive capability, so `vm.createSelectFork` against it still serves
 the historical state each suite asks for.
@@ -36,7 +35,7 @@ ETH_RPC_URL=http://127.0.0.1:8601 TEST_FORK_BLOCK=25934149 \
   forge test --match-path "test/fork/*" -vv
 ```
 
-**Result: 281 passed, 2 failed, 0 skipped (283 tests, 14 suites).**
+**Result: 276 passed, 0 failed, 0 skipped (276 tests, 13 suites).**
 
 | Suite | Result |
 |---|---|
@@ -53,11 +52,13 @@ ETH_RPC_URL=http://127.0.0.1:8601 TEST_FORK_BLOCK=25934149 \
 | `ProtocolPolicyFork.t.sol` | 4 passed, 0 failed |
 | `EthWbtcShellParityFork.t.sol` | 3 passed, 0 failed |
 | `DuplicateRouteFork.t.sol` | 1 passed, 0 failed |
-| `DeployedHookSmokeFork.t.sol` | **5 passed, 2 failed** |
 
-The two failures are in `test/fork/DeployedHookSmokeFork.t.sol`, an untracked local file that
-exercises the previously deployed mainnet Hook against live prices. They predate this branch and
-are price drift on the old deployment, whose address was mined before the subsidy existed:
+An earlier run of this report recorded 283 tests with 2 failures. Both failures were in
+`test/fork/DeployedHookSmokeFork.t.sol`, a local file that was never tracked and never ran in CI.
+It exercised the October 12 Hook at `0x59255CbC688e402eF980B84668bA1d1c708b6088`, which the
+October 16 protocol-fee replacement at `0xbeBc5239e446BC78B46654Ad943b0Fc19A31E088` superseded and
+which this branch will replace again. It forked at the latest block instead of a pinned one, so its
+price assertions drifted with the market:
 
 ```text
 [FAIL: exact-in USDC->ETH pays live FewV2 price: 829252318717884374 != 828675297169831202]
@@ -65,9 +66,14 @@ are price drift on the old deployment, whose address was mined before the subsid
 [FAIL: EvmError: Revert] test_fork_pair2_swap_USDT_to_ETH_passes()
 ```
 
-No failure touches the code in this branch. The Hook the subsidy suites exercise is deployed by
-the suite itself (`nativeHook = _deployHook(...)`), so those 51 + 55 cases test this branch's
-bytecode, not the old mainnet deployment.
+The file has been deleted. Every case it held is covered by a tracked suite that pins its block:
+`DeployedQuoteParityFork` tests the same deployed Hook address through the official Universal
+Router and asserts that the quote and the fill match exactly, `FewV2ShellHookFork` covers the
+allowlist and the deployment configuration against this branch's own bytecode, and
+`EthWbtcShellParityFork` covers the ETH/USDT route and USDT's non-standard ERC20 behaviour.
+
+The Hook the subsidy suites exercise is deployed by the suite itself (`nativeHook = _deployHook(...)`),
+so those 51 + 55 cases test this branch's bytecode, not any mainnet deployment.
 
 The hermetic suite was run separately and is green:
 
@@ -257,8 +263,9 @@ The deployment rehearsal then runs the scripts in the order of the "Deployment o
 - **The protocol fee was set by impersonating the controller.** On mainnet the controller is a
   contract; the rate was set with `setProtocolFee` on the forked PoolManager exactly as the
   Uniswap controller would.
-- **`DeployedHookSmokeFork` still fails twice.** Those two failures are on the old mainnet
-  deployment and are price drift, not a regression. They are listed here so the count is not
-  mistaken for a green run of the whole directory.
+- **The deployed-contract fixtures are not part of this branch.** `DeployedQuoteParityFork` pins the
+  October 12 Hook at block `26197122` and tests it through the official Universal Router. It is
+  green, but it describes a contract this branch will replace, not the branch's own code. The
+  branch's code is covered by the suites that deploy it themselves.
 - **The upstream RPC is a third-party archive node.** `https://eth.drpc.org` was reachable from
   this environment; the CI job uses a repository secret instead.
